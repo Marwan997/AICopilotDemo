@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import './App.css'
+import { classificationTone, vendorCases, type VendorCase } from './demoData'
 
 type Tone = 'good' | 'warn' | 'critical' | 'info'
 
@@ -72,6 +73,8 @@ type ApiResponse = {
   error?: string | null
 }
 
+type ViewMode = 'copilot' | 'monitoring'
+
 function asArray<T>(value: T | T[] | undefined | null): T[] {
   if (!value) return []
   return Array.isArray(value) ? value : [value]
@@ -96,6 +99,18 @@ function formatDate(value?: string) {
   return date.toLocaleString()
 }
 
+function formatPercent(value: number, digits = 1) {
+  return `${(value * 100).toFixed(digits)}%`
+}
+
+function formatMoney(value: number) {
+  return new Intl.NumberFormat('en-SA', {
+    style: 'currency',
+    currency: 'SAR',
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
 function MiniChart({ values, color = 'var(--accent)' }: { values: number[]; color?: string }) {
   const points = useMemo(() => {
     if (!values.length) return ''
@@ -116,39 +131,239 @@ function MiniChart({ values, color = 'var(--accent)' }: { values: number[]; colo
   )
 }
 
-function App() {
-  const [payload, setPayload] = useState<DashboardPayload | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+function CopilotView({ selectedVendor, onSelectVendor }: { selectedVendor: VendorCase; onSelectVendor: (vendor: VendorCase) => void }) {
+  const tone = classificationTone(selectedVendor.classification)
+  const classCounts = vendorCases.reduce<Record<string, number>>((acc, vendor) => {
+    acc[vendor.classification] = (acc[vendor.classification] ?? 0) + 1
+    return acc
+  }, {})
 
-  const loadData = useCallback(async (force = false) => {
-    try {
-      force ? setRefreshing(true) : setLoading(true)
-      const apiBase = `${window.location.protocol}//${window.location.hostname}:4173`
-      const response = await fetch(`${apiBase}${force ? '/api/refresh' : '/api/dashboard'}`, {
-        method: force ? 'POST' : 'GET',
-      })
-      const json = (await response.json()) as ApiResponse
-      if (!json.ok || !json.data) {
-        throw new Error(json.error ?? 'Failed to load dashboard data')
-      }
-      setPayload(json.data)
-      setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown dashboard error')
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [])
+  return (
+    <>
+      <header className="hero-panel panel hero-panel-copilot">
+        <div>
+          <p className="eyebrow">Mario • Account Manager Copilot</p>
+          <h1>Vendor action center</h1>
+          <p className="hero-copy">
+            Deterministic branch analytics on the left, AI-ready recommendations on the right. This is the live competition demo view for account managers.
+          </p>
+          <div className="hero-meta">
+            <span>5 curated vendors</span>
+            <span>Branch-level analytics</span>
+            <span>AI explains and recommends, it does not invent KPIs</span>
+          </div>
+        </div>
+        <div className="hero-actions hero-actions-wide">
+          <div className="hero-pill tone-good">Healthy {classCounts.Healthy ?? 0}</div>
+          <div className="hero-pill tone-info">High Potential {classCounts['High Potential'] ?? 0}</div>
+          <div className="hero-pill tone-critical">At Risk {classCounts['At Risk'] ?? 0}</div>
+        </div>
+      </header>
 
-  useEffect(() => {
-    void loadData(false)
-    const timer = window.setInterval(() => void loadData(false), 15000)
-    return () => window.clearInterval(timer)
-  }, [loadData])
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Portfolio overview</p>
+            <h2>Curated demo vendors</h2>
+          </div>
+        </div>
+        <div className="vendor-grid">
+          {vendorCases.map((vendor) => {
+            const selected = vendor.vendorId === selectedVendor.vendorId
+            const vendorTone = classificationTone(vendor.classification)
+            return (
+              <button
+                key={vendor.vendorId}
+                className={`vendor-card ${selected ? 'vendor-card-selected' : ''}`}
+                onClick={() => onSelectVendor(vendor)}
+              >
+                <div className="vendor-card-header">
+                  <div>
+                    <strong>Vendor {vendor.vendorId}</strong>
+                    <p>
+                      {vendor.city} • {vendor.cuisine}
+                    </p>
+                  </div>
+                  <span className={`status-chip tone-${vendorTone}`}>{vendor.classification}</span>
+                </div>
+                <div className="vendor-score-row">
+                  <span>Final score</span>
+                  <strong>{vendor.finalScore.toFixed(1)}</strong>
+                </div>
+                <p className="vendor-summary">{vendor.summary}</p>
+                <div className="vendor-tags">
+                  <span className="subtle-tag">Story {vendor.storyTag}</span>
+                  <span className="subtle-tag">Chef {vendor.mainChefId}</span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </section>
 
+      <section className="three-column-layout">
+        <article className="panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Vendor detail</p>
+              <h2>
+                Vendor {selectedVendor.vendorId} • {selectedVendor.city}
+              </h2>
+            </div>
+            <span className={`status-chip tone-${tone}`}>{selectedVendor.classification}</span>
+          </div>
+
+          <div className="metric-grid metric-grid-three">
+            <article className="metric-card tone-info">
+              <span className="metric-label">Orders trend</span>
+              <strong className="metric-value">{selectedVendor.kpis.ordersTrendPct.toFixed(1)}%</strong>
+              <span className="metric-detail">
+                {selectedVendor.kpis.deliveredOrdersRecent} vs {selectedVendor.kpis.deliveredOrdersPrev} delivered orders
+              </span>
+            </article>
+            <article className="metric-card tone-info">
+              <span className="metric-label">GMV trend</span>
+              <strong className="metric-value">{selectedVendor.kpis.gmvTrendPct.toFixed(1)}%</strong>
+              <span className="metric-detail">
+                {formatMoney(selectedVendor.kpis.deliveredGmvRecent)} vs {formatMoney(selectedVendor.kpis.deliveredGmvPrev)}
+              </span>
+            </article>
+            <article className={`metric-card tone-${tone}`}>
+              <span className="metric-label">AOV</span>
+              <strong className="metric-value">{formatMoney(selectedVendor.kpis.avgOrderValueRecent)}</strong>
+              <span className="metric-detail">Current recent-period average order value</span>
+            </article>
+          </div>
+
+          <div className="score-grid">
+            <div className="score-card">
+              <div className="bar-row-header"><strong>Growth</strong><span>{selectedVendor.scores.growth.toFixed(1)}</span></div>
+              <div className="bar-track large"><div className="bar-fill" style={{ width: `${selectedVendor.scores.growth}%` }} /></div>
+            </div>
+            <div className="score-card">
+              <div className="bar-row-header"><strong>Quality</strong><span>{selectedVendor.scores.quality.toFixed(1)}</span></div>
+              <div className="bar-track large"><div className="bar-fill" style={{ width: `${selectedVendor.scores.quality}%` }} /></div>
+            </div>
+            <div className="score-card">
+              <div className="bar-row-header"><strong>Efficiency</strong><span>{selectedVendor.scores.efficiency.toFixed(1)}</span></div>
+              <div className="bar-track large"><div className="bar-fill" style={{ width: `${selectedVendor.scores.efficiency}%` }} /></div>
+            </div>
+            <div className="score-card">
+              <div className="bar-row-header"><strong>Seasonality</strong><span>{selectedVendor.scores.seasonality.toFixed(1)}</span></div>
+              <div className="bar-track large"><div className="bar-fill" style={{ width: `${selectedVendor.scores.seasonality}%` }} /></div>
+            </div>
+            <div className="score-card">
+              <div className="bar-row-header"><strong>Benchmark</strong><span>{selectedVendor.scores.benchmark.toFixed(1)}</span></div>
+              <div className="bar-track large"><div className="bar-fill" style={{ width: `${selectedVendor.scores.benchmark}%` }} /></div>
+            </div>
+          </div>
+
+          <div className="two-column two-column-tight">
+            <div className="panel inset-panel">
+              <div className="section-heading compact-heading">
+                <div>
+                  <p className="eyebrow">Quality and support</p>
+                  <h3>Operational KPIs</h3>
+                </div>
+              </div>
+              <div className="kpi-list">
+                <div className="table-row compact"><strong>Delivered rate</strong><span>{formatPercent(selectedVendor.kpis.deliveredRateRecent)}</span></div>
+                <div className="table-row compact"><strong>Decline rate</strong><span>{formatPercent(selectedVendor.kpis.declineRateRecent)}</span></div>
+                <div className="table-row compact"><strong>Cancel rate</strong><span>{formatPercent(selectedVendor.kpis.cancelRateRecent)}</span></div>
+                <div className="table-row compact"><strong>Free delivery rate</strong><span>{formatPercent(selectedVendor.kpis.freeDeliveryRateRecent)}</span></div>
+                <div className="table-row compact"><strong>Subsidy ratio</strong><span>{formatPercent(selectedVendor.kpis.subsidyRatioRecent, 2)}</span></div>
+                <div className="table-row compact"><strong>Net take ratio</strong><span>{formatPercent(selectedVendor.kpis.netTakeRatioRecent, 2)}</span></div>
+              </div>
+            </div>
+
+            <div className="panel inset-panel">
+              <div className="section-heading compact-heading">
+                <div>
+                  <p className="eyebrow">Peer position</p>
+                  <h3>Benchmark percentiles</h3>
+                </div>
+              </div>
+              <div className="bar-list">
+                {[
+                  ['Orders', selectedVendor.benchmarks.ordersPercentile],
+                  ['GMV', selectedVendor.benchmarks.gmvPercentile],
+                  ['AOV', selectedVendor.benchmarks.aovPercentile],
+                  ['Quality', selectedVendor.benchmarks.qualityPercentile],
+                  ['Efficiency', selectedVendor.benchmarks.efficiencyPercentile],
+                ].map(([label, value]) => (
+                  <div key={String(label)} className="bar-row">
+                    <div className="bar-row-header">
+                      <span>{label}</span>
+                      <strong>{Number(value).toFixed(1)}</strong>
+                    </div>
+                    <div className="bar-track">
+                      <div className="bar-fill" style={{ width: `${Number(value)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article className="panel copilot-panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">AI Copilot</p>
+              <h2>AM recommendation panel</h2>
+            </div>
+            <span className={`status-chip tone-${tone}`}>Live demo</span>
+          </div>
+
+          <div className="copilot-block">
+            <h3>Performance summary</h3>
+            <p>{selectedVendor.copilot.performanceSummary}</p>
+          </div>
+
+          <div className="copilot-block">
+            <h3>Likely causes</h3>
+            <ul className="action-list">
+              {selectedVendor.copilot.likelyCauses.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="copilot-block">
+            <h3>Top 3 AM actions</h3>
+            <ol className="action-list ordered-list">
+              {selectedVendor.copilot.actions.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ol>
+          </div>
+
+          <div className="copilot-block">
+            <h3>Merchant talking points</h3>
+            <ul className="action-list">
+              {selectedVendor.copilot.talkingPoints.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div className={`copilot-watchout tone-${tone}`}>
+            <strong>Watchout</strong>
+            <p>{selectedVendor.copilot.watchout}</p>
+          </div>
+        </article>
+      </section>
+    </>
+  )
+}
+
+function MonitoringView({ payload, loading, refreshing, error, onRefresh }: {
+  payload: DashboardPayload | null
+  loading: boolean
+  refreshing: boolean
+  error: string | null
+  onRefresh: () => void
+}) {
   if (loading && !payload) {
     return <div className="loading-state">Loading live monitoring data…</div>
   }
@@ -177,7 +392,7 @@ function App() {
   const defenderHealthy = Boolean(payload.defender?.AntivirusEnabled && payload.defender?.RealTimeProtectionEnabled)
 
   return (
-    <div className="dashboard-shell">
+    <>
       <header className="hero-panel panel">
         <div>
           <p className="eyebrow">Mario • Live Monitoring</p>
@@ -197,7 +412,7 @@ function App() {
             Internet {latency === null ? 'offline' : `${latency} ms`}
           </div>
           <div className="hero-pill tone-info">CPU {cpuPercent.toFixed(1)}%</div>
-          <button className="refresh-button" onClick={() => void loadData(true)} disabled={refreshing}>
+          <button className="refresh-button" onClick={onRefresh} disabled={refreshing}>
             {refreshing ? 'Refreshing…' : 'Refresh now'}
           </button>
         </div>
@@ -444,6 +659,84 @@ function App() {
           })}
         </div>
       </section>
+    </>
+  )
+}
+
+function App() {
+  const [payload, setPayload] = useState<DashboardPayload | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>('copilot')
+  const [selectedVendorId, setSelectedVendorId] = useState<number>(vendorCases[0].vendorId)
+
+  const selectedVendor = useMemo(
+    () => vendorCases.find((vendor) => vendor.vendorId === selectedVendorId) ?? vendorCases[0],
+    [selectedVendorId],
+  )
+
+  const loadData = useCallback(async (force = false) => {
+    try {
+      force ? setRefreshing(true) : setLoading(true)
+      const apiBase = `${window.location.protocol}//${window.location.hostname}:4173`
+      const response = await fetch(`${apiBase}${force ? '/api/refresh' : '/api/dashboard'}`, {
+        method: force ? 'POST' : 'GET',
+      })
+      const json = (await response.json()) as ApiResponse
+      if (!json.ok || !json.data) {
+        throw new Error(json.error ?? 'Failed to load dashboard data')
+      }
+      setPayload(json.data)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown dashboard error')
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadData(false)
+    const timer = window.setInterval(() => void loadData(false), 15000)
+    return () => window.clearInterval(timer)
+  }, [loadData])
+
+  return (
+    <div className="dashboard-shell">
+      <div className="view-switcher panel">
+        <div>
+          <p className="eyebrow">Mode</p>
+          <h2>Choose the experience</h2>
+        </div>
+        <div className="toggle-group">
+          <button
+            className={`toggle-button ${viewMode === 'copilot' ? 'toggle-button-active' : ''}`}
+            onClick={() => setViewMode('copilot')}
+          >
+            AM Copilot Demo
+          </button>
+          <button
+            className={`toggle-button ${viewMode === 'monitoring' ? 'toggle-button-active' : ''}`}
+            onClick={() => setViewMode('monitoring')}
+          >
+            Server Monitoring
+          </button>
+        </div>
+      </div>
+
+      {viewMode === 'copilot' ? (
+        <CopilotView selectedVendor={selectedVendor} onSelectVendor={(vendor) => setSelectedVendorId(vendor.vendorId)} />
+      ) : (
+        <MonitoringView
+          payload={payload}
+          loading={loading}
+          refreshing={refreshing}
+          error={error}
+          onRefresh={() => void loadData(true)}
+        />
+      )}
     </div>
   )
 }
