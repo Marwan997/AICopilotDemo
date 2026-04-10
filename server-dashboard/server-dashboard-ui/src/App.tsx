@@ -163,12 +163,35 @@ function App() {
       setPayload(json.data)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown dashboard error')
+      const message = err instanceof Error ? err.message : 'Unknown dashboard error'
+      setError(message)
+      if (!force && !payload) {
+        setPayload({
+          timestamp: new Date().toISOString(),
+          host: { WindowsProductName: 'Dashboard data unavailable' },
+          os: { freePhysicalMemoryGB: 0, totalVisibleMemoryGB: 0 },
+          counters: { cpuPercent: 0, memoryAvailableMB: 0, diskPercent: 0, network: [] },
+          processes: [],
+          firewall: [],
+          adapters: [],
+          connections: [],
+          disks: [],
+          events: [],
+          internet: { latencyMs: null, jitterMs: null, packetSamples: [] },
+          openclaw: {
+            status: 'Unavailable',
+            updateStatus: 'Unavailable',
+            audit: 'Unavailable',
+          },
+          derived: { cpuTone: 'info', diskTone: 'info', internetTone: 'critical', memoryUsedPercent: 0 },
+          history: [],
+        })
+      }
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [payload])
 
   useEffect(() => {
     void loadData(false)
@@ -246,7 +269,7 @@ function App() {
     },
   ]
 
-  if (loading) {
+  if (loading && !payload) {
     return <div className="loading-state">Loading live monitoring data…</div>
   }
 
