@@ -6,7 +6,9 @@ import { promisify } from 'node:util'
 const execAsync = promisify(exec)
 const app = express()
 const PORT = 4173
-const HISTORY_LIMIT = 60
+const HISTORY_LIMIT = 120
+const FAST_INTERVAL_MS = 15000
+const SLOW_INTERVAL_MS = 5 * 60 * 1000
 
 type Tone = 'good' | 'warn' | 'critical' | 'info'
 
@@ -21,9 +23,18 @@ type Sample = {
   internetQuality: Tone
 }
 
+type Snapshot = Record<string, unknown>
+
 const history: Sample[] = []
-let latestSnapshot: Record<string, unknown> | null = null
+let latestSnapshot: Snapshot | null = null
 let collectionError: string | null = null
+let lastFastCollectionAt: string | null = null
+let lastSlowCollectionAt: string | null = null
+let fastCollectionRunning = false
+let slowCollectionRunning = false
+let cachedOpenClawStatus = 'warming up'
+let cachedOpenClawUpdate = 'warming up'
+let cachedOpenClawAudit = 'warming up'
 
 app.use(cors())
 
@@ -50,7 +61,7 @@ async function runPowerShellJson(script: string) {
 
 async function pingHost(host: string) {
   try {
-    const { stdout } = await execAsync(`PING.EXE -n 4 ${host}`, { maxBuffer: 1024 * 1024 })
+    const { stdout } = await execAsync(`PING.EXE -n 3 ${host}`, { maxBuffer: 1024 * 1024 })
     const matches = [...stdout.matchAll(/time[=<](\d+)ms/gi)].map((m) => Number(m[1]))
     const summary = stdout.match(/Average = (\d+)ms/i)
     const latency = summary ? Number(summary[1]) : matches[0] ?? null
@@ -68,9 +79,12 @@ async function pingHost(host: string) {
   }
 }
 
-async function getOpenClawCommand(command: string) {
+async function getOpenClawCommand(command: string, timeoutMs = 20000) {
   try {
-    const { stdout, stderr } = await execAsync(command, { maxBuffer: 1024 * 1024 * 8 })
+    const { stdout, stderr } = await execAsync(command, {
+      maxBuffer: 1024 * 1024 * 8,
+      timeout: timeoutMs,
+    })
     return (stdout || stderr).trim()
   } catch (error) {
     const output = error instanceof Error && 'message' in error ? String(error.message) : 'command failed'
@@ -97,8 +111,17 @@ function toneForLatency(value: number | null): Tone {
   return 'good'
 }
 
-async function collectSnapshot() {
-  const psScript = String.raw`
+function normalizeArray<T>(value: T | T[] | undefined): T[] {
+  if (!value) return []
+  return Array.isArray(value) ? value : [value]
+}
+
+async function collectFastSnapshot(force = false) {
+  if (fastCollectionRunning && !force) return latestSnapshot
+  fastCollectionRunning = true
+
+  try {
+    const psScript = String.raw`
 $computer = Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsHardwareAbstractionLayer,CsTotalPhysicalMemory
 $os = Get-CimInstance Win32_OperatingSystem
 $counters = Get-Counter '\Processor(_Total)\% Processor Time','\Memory\Available MBytes','\PhysicalDisk(_Total)\% Disk Time','\Network Interface(*)\Bytes Total/sec'
@@ -106,10 +129,7 @@ $cpuCounter = ($counters.CounterSamples | Where-Object { $_.Path -like '*process
 $memoryCounter = ($counters.CounterSamples | Where-Object { $_.Path -like '*memory\available mbytes*' } | Select-Object -First 1).CookedValue
 $diskCounter = ($counters.CounterSamples | Where-Object { $_.Path -like '*physicaldisk(_total)*' } | Select-Object -First 1).CookedValue
 $networkCounters = $counters.CounterSamples | Where-Object { $_.Path -like '*network interface*bytes total/sec' } | ForEach-Object {
-  [PSCustomObject]@{
-    path = $_.Path
-    value = [math]::Round($_.CookedValue, 2)
-  }
+  [PSCustomObject]@{ path = $_.Path; value = [math]::Round($_.CookedValue, 2) }
 }
 $processes = Get-Process | Sort-Object CPU -Descending | Select-Object -First 8 ProcessName,Id,@{Name='CPU';Expression={[math]::Round($_.CPU,2)}},@{Name='WSMB';Expression={[math]::Round($_.WS/1MB,1)}}
 $firewall = Get-NetFirewallProfile | Select-Object Name,Enabled,DefaultInboundAction,DefaultOutboundAction
@@ -117,7 +137,7 @@ $defender = Get-MpComputerStatus | Select-Object AMServiceEnabled,AntivirusEnabl
 $adapters = Get-NetAdapterStatistics | Select-Object Name,@{Name='ReceivedBytes';Expression={$_.ReceivedBytes}},@{Name='SentBytes';Expression={$_.SentBytes}},ReceivedUnicastPackets,SentUnicastPackets
 $connections = Get-NetTCPConnection | Group-Object State | Select-Object Name,Count
 $disks = Get-PSDrive -PSProvider FileSystem | Select-Object Name,@{Name='UsedGB';Expression={[math]::Round($_.Used/1GB,2)}},@{Name='FreeGB';Expression={[math]::Round($_.Free/1GB,2)}},@{Name='UsedPercent';Expression={ if (($_.Used + $_.Free) -gt 0) {[math]::Round(($_.Used / ($_.Used + $_.Free)) * 100, 1)} else {0} }}
-$events = Get-WinEvent -LogName System -MaxEvents 12 | Select-Object TimeCreated,LevelDisplayName,ProviderName,Id,Message
+$events = Get-WinEvent -LogName System -MaxEvents 8 | Select-Object TimeCreated,LevelDisplayName,ProviderName,Id,Message
 [PSCustomObject]@{
   host = $computer
   os = [PSCustomObject]@{
@@ -141,72 +161,122 @@ $events = Get-WinEvent -LogName System -MaxEvents 12 | Select-Object TimeCreated
 } | ConvertTo-Json -Depth 6
 `
 
-  const [psRaw, ping, statusOutput, updateOutput, auditOutput] = await Promise.all([
-    runPowerShellJson(psScript),
-    pingHost('1.1.1.1'),
-    getOpenClawCommand('openclaw status'),
-    getOpenClawCommand('openclaw update status'),
-    getOpenClawCommand('openclaw security audit --deep'),
-  ])
+    const [psRaw, ping] = await Promise.all([runPowerShellJson(psScript), pingHost('1.1.1.1')])
+    const parsed = safeJsonParse<Record<string, any>>(psRaw, {})
+    const cpuPercent = Number(parsed?.counters?.cpuPercent ?? 0)
+    const memoryFreeGb = Number(parsed?.os?.freePhysicalMemoryGB ?? 0)
+    const totalMemoryGb = Number(parsed?.os?.totalVisibleMemoryGB ?? 0)
+    const diskList = normalizeArray(parsed?.disks)
+    const diskUsedPercent = Number(diskList[0]?.UsedPercent ?? parsed?.counters?.diskPercent ?? 0)
+    const memoryUsedPercent = totalMemoryGb > 0 ? Number((((totalMemoryGb - memoryFreeGb) / totalMemoryGb) * 100).toFixed(1)) : 0
 
-  const parsed = safeJsonParse<Record<string, any>>(psRaw, {})
-  const cpuPercent = Number(parsed?.counters?.cpuPercent ?? 0)
-  const memoryFreeGb = Number(parsed?.os?.freePhysicalMemoryGB ?? 0)
-  const totalMemoryGb = Number(parsed?.os?.totalVisibleMemoryGB ?? 0)
-  const diskUsedPercent = Number(parsed?.disks?.[0]?.UsedPercent ?? parsed?.counters?.diskPercent ?? 0)
-  const memoryUsedPercent = totalMemoryGb > 0 ? Number((((totalMemoryGb - memoryFreeGb) / totalMemoryGb) * 100).toFixed(1)) : 0
-
-  const sample: Sample = {
-    timestamp: new Date().toISOString(),
-    cpuPercent,
-    memoryFreeGb,
-    memoryUsedPercent,
-    diskUsedPercent,
-    latencyMs: ping.latencyMs,
-    jitterMs: ping.jitterMs,
-    internetQuality: toneForLatency(ping.latencyMs),
-  }
-
-  clampHistory(sample)
-
-  latestSnapshot = {
-    timestamp: sample.timestamp,
-    host: parsed.host,
-    os: parsed.os,
-    counters: parsed.counters,
-    processes: parsed.processes,
-    firewall: parsed.firewall,
-    defender: parsed.defender,
-    adapters: parsed.adapters,
-    connections: parsed.connections,
-    disks: parsed.disks,
-    events: parsed.events,
-    internet: ping,
-    openclaw: {
-      status: statusOutput,
-      updateStatus: updateOutput,
-      audit: auditOutput,
-    },
-    derived: {
-      cpuTone: toneForCpu(cpuPercent),
-      diskTone: toneForDisk(diskUsedPercent),
-      internetTone: toneForLatency(ping.latencyMs),
+    const sample: Sample = {
+      timestamp: new Date().toISOString(),
+      cpuPercent,
+      memoryFreeGb,
       memoryUsedPercent,
-    },
-    history,
-  }
+      diskUsedPercent,
+      latencyMs: ping.latencyMs,
+      jitterMs: ping.jitterMs,
+      internetQuality: toneForLatency(ping.latencyMs),
+    }
 
-  collectionError = null
+    clampHistory(sample)
+
+    latestSnapshot = {
+      timestamp: sample.timestamp,
+      host: parsed.host,
+      os: parsed.os,
+      counters: parsed.counters,
+      processes: normalizeArray(parsed.processes),
+      firewall: normalizeArray(parsed.firewall),
+      defender: parsed.defender,
+      adapters: normalizeArray(parsed.adapters),
+      connections: normalizeArray(parsed.connections),
+      disks: diskList,
+      events: normalizeArray(parsed.events),
+      internet: ping,
+      openclaw: {
+        status: cachedOpenClawStatus,
+        updateStatus: cachedOpenClawUpdate,
+        audit: cachedOpenClawAudit,
+      },
+      derived: {
+        cpuTone: toneForCpu(cpuPercent),
+        diskTone: toneForDisk(diskUsedPercent),
+        internetTone: toneForLatency(ping.latencyMs),
+        memoryUsedPercent,
+      },
+      history: [...history],
+      meta: {
+        lastFastCollectionAt,
+        lastSlowCollectionAt,
+      },
+    }
+
+    lastFastCollectionAt = sample.timestamp
+    collectionError = null
+    return latestSnapshot
+  } finally {
+    fastCollectionRunning = false
+  }
+}
+
+async function collectSlowSnapshot(force = false) {
+  if (slowCollectionRunning && !force) return
+  slowCollectionRunning = true
+
+  try {
+    const [statusOutput, updateOutput, auditOutput] = await Promise.all([
+      getOpenClawCommand('openclaw status', 15000),
+      getOpenClawCommand('openclaw update status', 15000),
+      getOpenClawCommand('openclaw security audit --deep', 45000),
+    ])
+
+    cachedOpenClawStatus = statusOutput || cachedOpenClawStatus
+    cachedOpenClawUpdate = updateOutput || cachedOpenClawUpdate
+    cachedOpenClawAudit = auditOutput || cachedOpenClawAudit
+    lastSlowCollectionAt = new Date().toISOString()
+
+    if (latestSnapshot) {
+      latestSnapshot = {
+        ...latestSnapshot,
+        openclaw: {
+          status: cachedOpenClawStatus,
+          updateStatus: cachedOpenClawUpdate,
+          audit: cachedOpenClawAudit,
+        },
+        meta: {
+          ...(latestSnapshot.meta as Record<string, unknown> | undefined),
+          lastFastCollectionAt,
+          lastSlowCollectionAt,
+        },
+      }
+    }
+  } catch (error) {
+    collectionError = error instanceof Error ? error.message : 'slow collection failed'
+  } finally {
+    slowCollectionRunning = false
+  }
 }
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, latest: latestSnapshot ? 'ready' : 'warming', error: collectionError })
+  res.json({
+    ok: true,
+    latest: latestSnapshot ? 'ready' : 'warming',
+    error: collectionError,
+    lastFastCollectionAt,
+    lastSlowCollectionAt,
+    fastCollectionRunning,
+    slowCollectionRunning,
+  })
 })
 
 app.get('/api/dashboard', async (_req, res) => {
   try {
     if (!latestSnapshot) {
-      await collectSnapshot()
+      await collectFastSnapshot(true)
+      void collectSlowSnapshot(false)
     }
     res.json({ ok: true, data: latestSnapshot, error: collectionError })
   } catch (error) {
@@ -218,7 +288,8 @@ app.get('/api/dashboard', async (_req, res) => {
 
 app.post('/api/refresh', async (_req, res) => {
   try {
-    await collectSnapshot()
+    await collectFastSnapshot(true)
+    void collectSlowSnapshot(true)
     res.json({ ok: true, data: latestSnapshot })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown error'
@@ -227,15 +298,24 @@ app.post('/api/refresh', async (_req, res) => {
   }
 })
 
-collectSnapshot().catch((error) => {
-  collectionError = error instanceof Error ? error.message : 'initial collection failed'
+void collectFastSnapshot(true).catch((error) => {
+  collectionError = error instanceof Error ? error.message : 'initial fast collection failed'
+})
+void collectSlowSnapshot(true).catch((error) => {
+  collectionError = error instanceof Error ? error.message : 'initial slow collection failed'
 })
 
 setInterval(() => {
-  collectSnapshot().catch((error) => {
-    collectionError = error instanceof Error ? error.message : 'scheduled collection failed'
+  void collectFastSnapshot(false).catch((error) => {
+    collectionError = error instanceof Error ? error.message : 'scheduled fast collection failed'
   })
-}, 30000)
+}, FAST_INTERVAL_MS)
+
+setInterval(() => {
+  void collectSlowSnapshot(false).catch((error) => {
+    collectionError = error instanceof Error ? error.message : 'scheduled slow collection failed'
+  })
+}, SLOW_INTERVAL_MS)
 
 app.listen(PORT, () => {
   console.log(`Monitoring API listening on http://127.0.0.1:${PORT}`)

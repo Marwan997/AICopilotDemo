@@ -4,6 +4,10 @@ import './App.css'
 type Tone = 'good' | 'warn' | 'critical' | 'info'
 
 type DashboardPayload = {
+  meta?: {
+    lastFastCollectionAt?: string | null
+    lastSlowCollectionAt?: string | null
+  }
   timestamp: string
   host?: {
     WindowsProductName?: string
@@ -258,6 +262,7 @@ function App() {
             <span>{payload?.host?.WindowsProductName ?? 'Windows host'}</span>
             <span>{payload?.host?.WindowsVersion ?? 'n/a'}</span>
             <span>Last sample {formatDate(payload?.timestamp)}</span>
+            <span>OpenClaw cache {formatDate(payload?.meta?.lastSlowCollectionAt ?? undefined)}</span>
           </div>
         </div>
         <div className="hero-actions">
