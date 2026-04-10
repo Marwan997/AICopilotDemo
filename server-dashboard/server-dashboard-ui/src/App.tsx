@@ -12,8 +12,6 @@ type DashboardPayload = {
   host?: {
     WindowsProductName?: string
     WindowsVersion?: string
-    OsHardwareAbstractionLayer?: string
-    CsTotalPhysicalMemory?: number
   }
   os?: {
     freePhysicalMemoryGB?: number
@@ -22,23 +20,13 @@ type DashboardPayload = {
   }
   counters?: {
     cpuPercent?: number
-    memoryAvailableMB?: number
-    diskPercent?: number
-    network?: { path: string; value: number }[]
+    network?: { path: string; value: number }[] | { path: string; value: number }
   }
   processes?: { ProcessName?: string; Id?: number; CPU?: number; WSMB?: number }[]
-  firewall?: {
-    Name?: string
-    Enabled?: boolean
-    DefaultInboundAction?: string
-    DefaultOutboundAction?: string
-  }[]
+  firewall?: { Name?: string; Enabled?: boolean | number }[]
   defender?: {
-    AMServiceEnabled?: boolean
     AntivirusEnabled?: boolean
     RealTimeProtectionEnabled?: boolean
-    BehaviorMonitorEnabled?: boolean
-    IoavProtectionEnabled?: boolean
     AntivirusSignatureLastUpdated?: string
   }
   adapters?: {
@@ -54,13 +42,11 @@ type DashboardPayload = {
     TimeCreated?: string
     LevelDisplayName?: string
     ProviderName?: string
-    Id?: number
     Message?: string
   }[]
   internet?: {
     latencyMs?: number | null
     jitterMs?: number | null
-    packetSamples?: number[]
   }
   openclaw?: {
     status?: string
@@ -68,20 +54,15 @@ type DashboardPayload = {
     audit?: string
   }
   derived?: {
-    cpuTone?: Tone
-    diskTone?: Tone
     internetTone?: Tone
     memoryUsedPercent?: number
   }
   history?: {
     timestamp: string
     cpuPercent: number
-    memoryFreeGb: number
     memoryUsedPercent: number
     diskUsedPercent: number
     latencyMs: number | null
-    jitterMs: number | null
-    internetQuality: Tone
   }[]
 }
 
@@ -89,6 +70,11 @@ type ApiResponse = {
   ok: boolean
   data?: DashboardPayload
   error?: string | null
+}
+
+function asArray<T>(value: T | T[] | undefined | null): T[] {
+  if (!value) return []
+  return Array.isArray(value) ? value : [value]
 }
 
 function formatBytes(bytes?: number) {
@@ -103,24 +89,11 @@ function formatBytes(bytes?: number) {
   return `${value.toFixed(value >= 100 || index === 0 ? 0 : 1)} ${units[index]}`
 }
 
-function formatNumber(value?: number | null, suffix = '') {
-  if (value === undefined || value === null || Number.isNaN(value)) return 'n/a'
-  return `${value}${suffix}`
-}
-
 function formatDate(value?: string) {
   if (!value) return 'n/a'
-  return new Date(value).toLocaleString()
-}
-
-function toneClass(tone: Tone = 'info') {
-  return `tone-${tone}`
-}
-
-function metricTone(value: number, warn: number, critical: number): Tone {
-  if (value >= critical) return 'critical'
-  if (value >= warn) return 'warn'
-  return 'good'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString()
 }
 
 function MiniChart({ values, color = 'var(--accent)' }: { values: number[]; color?: string }) {
@@ -163,35 +136,12 @@ function App() {
       setPayload(json.data)
       setError(null)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown dashboard error'
-      setError(message)
-      if (!force && !payload) {
-        setPayload({
-          timestamp: new Date().toISOString(),
-          host: { WindowsProductName: 'Dashboard data unavailable' },
-          os: { freePhysicalMemoryGB: 0, totalVisibleMemoryGB: 0 },
-          counters: { cpuPercent: 0, memoryAvailableMB: 0, diskPercent: 0, network: [] },
-          processes: [],
-          firewall: [],
-          adapters: [],
-          connections: [],
-          disks: [],
-          events: [],
-          internet: { latencyMs: null, jitterMs: null, packetSamples: [] },
-          openclaw: {
-            status: 'Unavailable',
-            updateStatus: 'Unavailable',
-            audit: 'Unavailable',
-          },
-          derived: { cpuTone: 'info', diskTone: 'info', internetTone: 'critical', memoryUsedPercent: 0 },
-          history: [],
-        })
-      }
+      setError(err instanceof Error ? err.message : 'Unknown dashboard error')
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [payload])
+  }, [])
 
   useEffect(() => {
     void loadData(false)
@@ -199,79 +149,32 @@ function App() {
     return () => window.clearInterval(timer)
   }, [loadData])
 
-  const cpuPercent = payload?.counters?.cpuPercent ?? 0
-  const memoryFree = payload?.os?.freePhysicalMemoryGB ?? 0
-  const memoryTotal = payload?.os?.totalVisibleMemoryGB ?? 0
-  const memoryUsedPercent = payload?.derived?.memoryUsedPercent ?? 0
-  const diskPrimary = payload?.disks?.[0]
-  const latency = payload?.internet?.latencyMs ?? null
-  const jitter = payload?.internet?.jitterMs ?? null
-  const networkTotal = (payload?.counters?.network ?? []).reduce((sum, item) => sum + item.value, 0)
-  const firewallEnabled = (payload?.firewall ?? []).every((profile) => profile.Enabled)
-  const defenderHealthy = Boolean(payload?.defender?.AntivirusEnabled && payload?.defender?.RealTimeProtectionEnabled)
-  const auditText = payload?.openclaw?.audit ?? ''
-  const updateText = payload?.openclaw?.updateStatus ?? ''
-  const auditTone: Tone = auditText.toLowerCase().includes('potential') || auditText.toLowerCase().includes('warning') ? 'warn' : 'good'
-  const updateTone: Tone = updateText.toLowerCase().includes('update available') ? 'warn' : 'good'
-  const history = payload?.history ?? []
-
-  const overviewCards: { label: string; value: string; detail: string; tone: Tone }[] = [
-    {
-      label: 'CPU Load',
-      value: `${cpuPercent.toFixed(1)}%`,
-      detail: 'Live total processor time',
-      tone: metricTone(cpuPercent, 65, 90),
-    },
-    {
-      label: 'Memory Pressure',
-      value: `${memoryUsedPercent.toFixed(1)}%`,
-      detail: `${memoryFree.toFixed(1)} GB free of ${memoryTotal.toFixed(1)} GB`,
-      tone: metricTone(memoryUsedPercent, 70, 85),
-    },
-    {
-      label: 'Primary Disk',
-      value: `${diskPrimary?.UsedPercent?.toFixed(1) ?? '0'}%`,
-      detail: `${diskPrimary?.FreeGB?.toFixed(1) ?? '0'} GB free on ${diskPrimary?.Name ?? 'C:'}`,
-      tone: metricTone(diskPrimary?.UsedPercent ?? 0, 75, 90),
-    },
-    {
-      label: 'Internet Latency',
-      value: latency === null ? 'offline' : `${latency} ms`,
-      detail: `Jitter ${formatNumber(jitter, ' ms')} to 1.1.1.1`,
-      tone: payload?.derived?.internetTone ?? 'info',
-    },
-  ]
-
-  const securityCards: { label: string; value: string; detail: string; tone: Tone }[] = [
-    {
-      label: 'Windows Defender',
-      value: defenderHealthy ? 'Protected' : 'Attention',
-      detail: `Signatures ${formatDate(payload?.defender?.AntivirusSignatureLastUpdated)}`,
-      tone: defenderHealthy ? 'good' : 'critical',
-    },
-    {
-      label: 'Firewall',
-      value: firewallEnabled ? 'Enabled' : 'Disabled',
-      detail: `${payload?.firewall?.length ?? 0} profiles checked`,
-      tone: firewallEnabled ? 'good' : 'critical',
-    },
-    {
-      label: 'OpenClaw Audit',
-      value: auditTone === 'good' ? 'Healthy' : 'Issues found',
-      detail: auditText.split('\n').find((line) => line.trim()) ?? 'Audit output loaded',
-      tone: auditTone,
-    },
-    {
-      label: 'OpenClaw Updates',
-      value: updateTone === 'warn' ? 'Available' : 'Current',
-      detail: updateText.split('\n').find((line) => line.includes('Update')) ?? 'Update status loaded',
-      tone: updateTone,
-    },
-  ]
-
   if (loading && !payload) {
     return <div className="loading-state">Loading live monitoring data…</div>
   }
+
+  if (!payload) {
+    return <div className="loading-state">Dashboard data unavailable.</div>
+  }
+
+  const connections = asArray(payload.connections)
+  const disks = asArray(payload.disks)
+  const processes = asArray(payload.processes)
+  const adapters = asArray(payload.adapters)
+  const events = asArray(payload.events)
+  const firewallProfiles = asArray(payload.firewall)
+  const history = asArray(payload.history)
+  const networkCounters = asArray(payload.counters?.network)
+
+  const cpuPercent = Number(payload.counters?.cpuPercent ?? 0)
+  const memoryUsedPercent = Number(payload.derived?.memoryUsedPercent ?? 0)
+  const memoryFree = Number(payload.os?.freePhysicalMemoryGB ?? 0)
+  const memoryTotal = Number(payload.os?.totalVisibleMemoryGB ?? 0)
+  const diskPrimary = disks[0]
+  const latency = payload.internet?.latencyMs ?? null
+  const networkTotal = networkCounters.reduce((sum, item) => sum + Number(item.value ?? 0), 0)
+  const firewallEnabled = firewallProfiles.length > 0 ? firewallProfiles.every((profile) => Boolean(profile.Enabled)) : false
+  const defenderHealthy = Boolean(payload.defender?.AntivirusEnabled && payload.defender?.RealTimeProtectionEnabled)
 
   return (
     <div className="dashboard-shell">
@@ -283,19 +186,17 @@ function App() {
             Live Windows and OpenClaw monitoring, refreshed automatically with local collector data.
           </p>
           <div className="hero-meta">
-            <span>{payload?.host?.WindowsProductName ?? 'Windows host'}</span>
-            <span>{payload?.host?.WindowsVersion ?? 'n/a'}</span>
-            <span>Last sample {formatDate(payload?.timestamp)}</span>
-            <span>OpenClaw cache {formatDate(payload?.meta?.lastSlowCollectionAt ?? undefined)}</span>
+            <span>{payload.host?.WindowsProductName ?? 'Windows host'}</span>
+            <span>{payload.host?.WindowsVersion ?? 'n/a'}</span>
+            <span>Last sample {formatDate(payload.timestamp)}</span>
+            <span>OpenClaw cache {formatDate(payload.meta?.lastSlowCollectionAt ?? undefined)}</span>
           </div>
         </div>
         <div className="hero-actions">
-          <div className={`hero-pill ${toneClass(payload?.derived?.internetTone ?? 'info')}`}>
+          <div className={`hero-pill tone-${payload.derived?.internetTone ?? 'info'}`}>
             Internet {latency === null ? 'offline' : `${latency} ms`}
           </div>
-          <div className={`hero-pill ${toneClass(metricTone(cpuPercent, 65, 90))}`}>
-            CPU {cpuPercent.toFixed(1)}%
-          </div>
+          <div className="hero-pill tone-info">CPU {cpuPercent.toFixed(1)}%</div>
           <button className="refresh-button" onClick={() => void loadData(true)} disabled={refreshing}>
             {refreshing ? 'Refreshing…' : 'Refresh now'}
           </button>
@@ -312,13 +213,26 @@ function App() {
           </div>
         </div>
         <div className="metric-grid">
-          {overviewCards.map((card) => (
-            <article key={card.label} className={`metric-card ${toneClass(card.tone)}`}>
-              <span className="metric-label">{card.label}</span>
-              <strong className="metric-value">{card.value}</strong>
-              <span className="metric-detail">{card.detail}</span>
-            </article>
-          ))}
+          <article className="metric-card tone-info">
+            <span className="metric-label">CPU Load</span>
+            <strong className="metric-value">{cpuPercent.toFixed(1)}%</strong>
+            <span className="metric-detail">Live total processor time</span>
+          </article>
+          <article className="metric-card tone-info">
+            <span className="metric-label">Memory Pressure</span>
+            <strong className="metric-value">{memoryUsedPercent.toFixed(1)}%</strong>
+            <span className="metric-detail">{memoryFree.toFixed(1)} GB free of {memoryTotal.toFixed(1)} GB</span>
+          </article>
+          <article className="metric-card tone-info">
+            <span className="metric-label">Primary Disk</span>
+            <strong className="metric-value">{Number(diskPrimary?.UsedPercent ?? 0).toFixed(1)}%</strong>
+            <span className="metric-detail">{Number(diskPrimary?.FreeGB ?? 0).toFixed(1)} GB free on {diskPrimary?.Name ?? 'C:'}</span>
+          </article>
+          <article className={`metric-card tone-${payload.derived?.internetTone ?? 'info'}`}>
+            <span className="metric-label">Internet Latency</span>
+            <strong className="metric-value">{latency === null ? 'offline' : `${latency} ms`}</strong>
+            <span className="metric-detail">Jitter {payload.internet?.jitterMs ?? 'n/a'} ms</span>
+          </article>
         </div>
       </section>
 
@@ -330,13 +244,26 @@ function App() {
           </div>
         </div>
         <div className="metric-grid">
-          {securityCards.map((card) => (
-            <article key={card.label} className={`metric-card ${toneClass(card.tone)}`}>
-              <span className="metric-label">{card.label}</span>
-              <strong className="metric-value">{card.value}</strong>
-              <span className="metric-detail">{card.detail}</span>
-            </article>
-          ))}
+          <article className={`metric-card ${defenderHealthy ? 'tone-good' : 'tone-critical'}`}>
+            <span className="metric-label">Windows Defender</span>
+            <strong className="metric-value">{defenderHealthy ? 'Protected' : 'Attention'}</strong>
+            <span className="metric-detail">Signatures {formatDate(payload.defender?.AntivirusSignatureLastUpdated)}</span>
+          </article>
+          <article className={`metric-card ${firewallEnabled ? 'tone-good' : 'tone-critical'}`}>
+            <span className="metric-label">Firewall</span>
+            <strong className="metric-value">{firewallEnabled ? 'Enabled' : 'Check needed'}</strong>
+            <span className="metric-detail">{firewallProfiles.length} profiles checked</span>
+          </article>
+          <article className="metric-card tone-warn">
+            <span className="metric-label">OpenClaw Audit</span>
+            <strong className="metric-value">Loaded</strong>
+            <span className="metric-detail">{payload.openclaw?.audit?.split('\n')[0] || 'Audit output available'}</span>
+          </article>
+          <article className="metric-card tone-warn">
+            <span className="metric-label">OpenClaw Updates</span>
+            <strong className="metric-value">Status</strong>
+            <span className="metric-detail">{payload.openclaw?.updateStatus?.split('\n')[0] || 'Update status available'}</span>
+          </article>
         </div>
       </section>
 
@@ -350,32 +277,20 @@ function App() {
           </div>
           <div className="history-grid">
             <div className="history-card">
-              <div className="bar-row-header">
-                <strong>CPU</strong>
-                <span>{cpuPercent.toFixed(1)}%</span>
-              </div>
-              <MiniChart values={history.map((item) => item.cpuPercent)} color="var(--accent)" />
+              <div className="bar-row-header"><strong>CPU</strong><span>{cpuPercent.toFixed(1)}%</span></div>
+              <MiniChart values={history.map((item) => Number(item.cpuPercent ?? 0))} />
             </div>
             <div className="history-card">
-              <div className="bar-row-header">
-                <strong>Memory used</strong>
-                <span>{memoryUsedPercent.toFixed(1)}%</span>
-              </div>
-              <MiniChart values={history.map((item) => item.memoryUsedPercent)} color="var(--warn)" />
+              <div className="bar-row-header"><strong>Memory used</strong><span>{memoryUsedPercent.toFixed(1)}%</span></div>
+              <MiniChart values={history.map((item) => Number(item.memoryUsedPercent ?? 0))} color="var(--warn)" />
             </div>
             <div className="history-card">
-              <div className="bar-row-header">
-                <strong>Disk used</strong>
-                <span>{diskPrimary?.UsedPercent?.toFixed(1) ?? '0'}%</span>
-              </div>
-              <MiniChart values={history.map((item) => item.diskUsedPercent)} color="var(--good)" />
+              <div className="bar-row-header"><strong>Disk used</strong><span>{Number(diskPrimary?.UsedPercent ?? 0).toFixed(1)}%</span></div>
+              <MiniChart values={history.map((item) => Number(item.diskUsedPercent ?? 0))} color="var(--good)" />
             </div>
             <div className="history-card">
-              <div className="bar-row-header">
-                <strong>Latency</strong>
-                <span>{latency === null ? 'n/a' : `${latency} ms`}</span>
-              </div>
-              <MiniChart values={history.map((item) => item.latencyMs ?? 0)} color="var(--accent-2)" />
+              <div className="bar-row-header"><strong>Latency</strong><span>{latency === null ? 'n/a' : `${latency} ms`}</span></div>
+              <MiniChart values={history.map((item) => Number(item.latencyMs ?? 0))} color="var(--accent-2)" />
             </div>
           </div>
         </article>
@@ -388,14 +303,14 @@ function App() {
             </div>
           </div>
           <div className="bar-list">
-            {(payload?.connections ?? []).map((item) => (
-              <div key={item.Name} className="bar-row">
+            {connections.map((item, index) => (
+              <div key={`${item.Name ?? 'state'}-${index}`} className="bar-row">
                 <div className="bar-row-header">
-                  <span>{item.Name}</span>
-                  <strong>{item.Count}</strong>
+                  <span>{item.Name ?? 'Unknown'}</span>
+                  <strong>{item.Count ?? 0}</strong>
                 </div>
                 <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${Math.min((item.Count ?? 0) * 1.8, 100)}%` }} />
+                  <div className="bar-fill" style={{ width: `${Math.min(Number(item.Count ?? 0) * 1.8, 100)}%` }} />
                 </div>
               </div>
             ))}
@@ -412,15 +327,15 @@ function App() {
             </div>
           </div>
           <div className="process-list">
-            {(payload?.processes ?? []).map((process) => (
-              <div key={`${process.ProcessName}-${process.Id}`} className="process-row">
+            {processes.map((process, index) => (
+              <div key={`${process.ProcessName ?? 'process'}-${process.Id ?? index}`} className="process-row">
                 <div>
-                  <strong>{process.ProcessName}</strong>
-                  <p>PID {process.Id}</p>
+                  <strong>{process.ProcessName ?? 'Unknown'}</strong>
+                  <p>PID {process.Id ?? 'n/a'}</p>
                 </div>
                 <div className="process-metrics">
-                  <span>CPU {formatNumber(process.CPU)}</span>
-                  <span>RAM {formatNumber(process.WSMB, ' MB')}</span>
+                  <span>CPU {process.CPU ?? 'n/a'}</span>
+                  <span>RAM {process.WSMB ?? 'n/a'} MB</span>
                 </div>
               </div>
             ))}
@@ -435,18 +350,16 @@ function App() {
             </div>
           </div>
           <div className="disk-list">
-            {(payload?.disks ?? []).map((disk) => (
-              <div key={disk.Name} className="disk-card">
+            {disks.map((disk, index) => (
+              <div key={`${disk.Name ?? 'disk'}-${index}`} className="disk-card">
                 <div className="bar-row-header">
-                  <strong>{disk.Name}</strong>
-                  <span>{disk.UsedPercent?.toFixed(1)}% used</span>
+                  <strong>{disk.Name ?? 'Disk'}</strong>
+                  <span>{Number(disk.UsedPercent ?? 0).toFixed(1)}% used</span>
                 </div>
                 <div className="bar-track large">
-                  <div className="bar-fill" style={{ width: `${disk.UsedPercent ?? 0}%` }} />
+                  <div className="bar-fill" style={{ width: `${Number(disk.UsedPercent ?? 0)}%` }} />
                 </div>
-                <p>
-                  {disk.FreeGB?.toFixed(1)} GB free / {disk.UsedGB?.toFixed(1)} GB used
-                </p>
+                <p>{Number(disk.FreeGB ?? 0).toFixed(1)} GB free / {Number(disk.UsedGB ?? 0).toFixed(1)} GB used</p>
               </div>
             ))}
           </div>
@@ -462,13 +375,11 @@ function App() {
             </div>
           </div>
           <div className="table-grid">
-            {(payload?.adapters ?? []).map((adapter) => (
-              <div key={adapter.Name} className="table-row compact">
+            {adapters.map((adapter, index) => (
+              <div key={`${adapter.Name ?? 'adapter'}-${index}`} className="table-row compact">
                 <div>
-                  <strong>{adapter.Name}</strong>
-                  <p>
-                    Packets {formatNumber(adapter.ReceivedUnicastPackets)} in / {formatNumber(adapter.SentUnicastPackets)} out
-                  </p>
+                  <strong>{adapter.Name ?? 'Unknown adapter'}</strong>
+                  <p>Packets {adapter.ReceivedUnicastPackets ?? 0} in / {adapter.SentUnicastPackets ?? 0} out</p>
                 </div>
                 <div className="process-metrics align-right">
                   <span>RX {formatBytes(adapter.ReceivedBytes)}</span>
@@ -497,11 +408,11 @@ function App() {
           </div>
           <div className="terminal-card">
             <h3>Status</h3>
-            <pre>{payload?.openclaw?.status ?? 'n/a'}</pre>
+            <pre>{payload.openclaw?.status ?? 'n/a'}</pre>
             <h3>Update status</h3>
-            <pre>{payload?.openclaw?.updateStatus ?? 'n/a'}</pre>
+            <pre>{payload.openclaw?.updateStatus ?? 'n/a'}</pre>
             <h3>Security audit</h3>
-            <pre>{payload?.openclaw?.audit ?? 'n/a'}</pre>
+            <pre>{payload.openclaw?.audit ?? 'n/a'}</pre>
           </div>
         </article>
       </section>
@@ -514,19 +425,19 @@ function App() {
           </div>
         </div>
         <div className="event-list">
-          {(payload?.events ?? []).slice(0, 8).map((event, index) => {
+          {events.slice(0, 8).map((event, index) => {
             const level = event.LevelDisplayName ?? 'Information'
-            const tone: Tone = /error/i.test(level) ? 'critical' : /warn/i.test(level) ? 'warn' : 'info'
+            const tone = /error/i.test(level) ? 'critical' : /warn/i.test(level) ? 'warn' : 'info'
             return (
-              <div key={`${event.TimeCreated}-${index}`} className="event-row">
-                <div className={`event-marker ${toneClass(tone)}`} />
-                <div className="event-time">{new Date(event.TimeCreated ?? '').toLocaleTimeString()}</div>
+              <div key={`${event.TimeCreated ?? 'event'}-${index}`} className="event-row">
+                <div className={`event-marker tone-${tone}`} />
+                <div className="event-time">{formatDate(event.TimeCreated)}</div>
                 <div>
                   <div className="event-headline">
-                    <strong>{event.ProviderName}</strong>
-                    <span>{event.LevelDisplayName}</span>
+                    <strong>{event.ProviderName ?? 'Unknown source'}</strong>
+                    <span>{event.LevelDisplayName ?? 'Info'}</span>
                   </div>
-                  <p>{event.Message?.replace(/\s+/g, ' ').trim()}</p>
+                  <p>{event.Message?.replace(/\s+/g, ' ').trim() ?? 'No message'}</p>
                 </div>
               </div>
             )
