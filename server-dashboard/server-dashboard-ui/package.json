@@ -8,6 +8,9 @@
     "dev:client": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "dev:server": "node --experimental-strip-types server/index.ts",
     "build": "tsc -b && vite build",
+    "serve:api": "node --experimental-strip-types server/index.ts",
+    "serve:ui": "node server/static-server.js",
+    "serve": "npm run build && concurrently \"npm:serve:api\" \"npm:serve:ui\"",
     "lint": "eslint .",
     "preview": "vite preview --host 127.0.0.1 --port 5173 --strictPort"
   },

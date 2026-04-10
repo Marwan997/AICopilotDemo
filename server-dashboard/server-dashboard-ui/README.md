@@ -15,14 +15,24 @@ Live dark-mode monitoring dashboard for this machine.
 - In-memory short history for trend charts
 - Auto-refresh every 15 seconds
 
-## Run
+## Run in stable local serve mode
 
 ```bash
 npm install
+npm run serve
+```
+
+This builds the frontend and starts two fixed local services:
+- dashboard UI on `http://127.0.0.1:8080`
+- API health on `http://127.0.0.1:4173/api/health`
+
+## Dev mode
+
+```bash
 npm run dev
 ```
 
-This starts:
+Dev mode starts:
 - frontend on `http://127.0.0.1:5173`
 - monitoring API on `http://127.0.0.1:4173`
 

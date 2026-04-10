@@ -152,7 +152,8 @@ function App() {
   const loadData = useCallback(async (force = false) => {
     try {
       force ? setRefreshing(true) : setLoading(true)
-      const response = await fetch(force ? '/api/refresh' : '/api/dashboard', {
+      const apiBase = `${window.location.protocol}//${window.location.hostname}:4173`
+      const response = await fetch(`${apiBase}${force ? '/api/refresh' : '/api/dashboard'}`, {
         method: force ? 'POST' : 'GET',
       })
       const json = (await response.json()) as ApiResponse

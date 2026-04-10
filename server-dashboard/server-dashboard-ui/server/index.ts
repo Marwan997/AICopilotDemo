@@ -1,11 +1,17 @@
 import cors from 'cors'
 import express from 'express'
 import { exec } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
 const execAsync = promisify(exec)
 const app = express()
 const PORT = 4173
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const distPath = path.resolve(process.cwd(), 'dist')
 const HISTORY_LIMIT = 120
 const FAST_INTERVAL_MS = 15000
 const SLOW_INTERVAL_MS = 5 * 60 * 1000
@@ -297,6 +303,22 @@ app.post('/api/refresh', async (_req, res) => {
     res.status(500).json({ ok: false, error: message })
   }
 })
+
+if (existsSync(distPath)) {
+  app.get('/', (_req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'))
+  })
+
+  app.use(express.static(distPath))
+
+  app.get('/:path', (req, res, next) => {
+    if (req.params.path.startsWith('api')) {
+      next()
+      return
+    }
+    res.sendFile(path.join(distPath, 'index.html'))
+  })
+}
 
 void collectFastSnapshot(true).catch((error) => {
   collectionError = error instanceof Error ? error.message : 'initial fast collection failed'
