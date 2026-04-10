@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
-    "dev:client": "vite",
+    "dev:client": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "dev:server": "node --experimental-strip-types server/index.ts",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview --host 127.0.0.1 --port 5173 --strictPort"
   },
   "dependencies": {
     "cors": "^2.8.6",
