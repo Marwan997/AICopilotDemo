@@ -1,260 +1,353 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import './App.css'
 
-type StatusTone = 'good' | 'warn' | 'critical' | 'info'
+type Tone = 'good' | 'warn' | 'critical' | 'info'
 
-type MetricCard = {
-  label: string
-  value: string
-  detail: string
-  tone?: StatusTone
+type DashboardPayload = {
+  timestamp: string
+  host?: {
+    WindowsProductName?: string
+    WindowsVersion?: string
+    OsHardwareAbstractionLayer?: string
+    CsTotalPhysicalMemory?: number
+  }
+  os?: {
+    freePhysicalMemoryGB?: number
+    totalVisibleMemoryGB?: number
+    lastBootUpTime?: string
+  }
+  counters?: {
+    cpuPercent?: number
+    memoryAvailableMB?: number
+    diskPercent?: number
+    network?: { path: string; value: number }[]
+  }
+  processes?: { ProcessName?: string; Id?: number; CPU?: number; WSMB?: number }[]
+  firewall?: {
+    Name?: string
+    Enabled?: boolean
+    DefaultInboundAction?: string
+    DefaultOutboundAction?: string
+  }[]
+  defender?: {
+    AMServiceEnabled?: boolean
+    AntivirusEnabled?: boolean
+    RealTimeProtectionEnabled?: boolean
+    BehaviorMonitorEnabled?: boolean
+    IoavProtectionEnabled?: boolean
+    AntivirusSignatureLastUpdated?: string
+  }
+  adapters?: {
+    Name?: string
+    ReceivedBytes?: number
+    SentBytes?: number
+    ReceivedUnicastPackets?: number
+    SentUnicastPackets?: number
+  }[]
+  connections?: { Name?: string; Count?: number }[]
+  disks?: { Name?: string; UsedGB?: number; FreeGB?: number; UsedPercent?: number }[]
+  events?: {
+    TimeCreated?: string
+    LevelDisplayName?: string
+    ProviderName?: string
+    Id?: number
+    Message?: string
+  }[]
+  internet?: {
+    latencyMs?: number | null
+    jitterMs?: number | null
+    packetSamples?: number[]
+  }
+  openclaw?: {
+    status?: string
+    updateStatus?: string
+    audit?: string
+  }
+  derived?: {
+    cpuTone?: Tone
+    diskTone?: Tone
+    internetTone?: Tone
+    memoryUsedPercent?: number
+  }
+  history?: {
+    timestamp: string
+    cpuPercent: number
+    memoryFreeGb: number
+    memoryUsedPercent: number
+    diskUsedPercent: number
+    latencyMs: number | null
+    jitterMs: number | null
+    internetQuality: Tone
+  }[]
 }
 
-type ServiceRow = {
-  name: string
-  status: string
-  port: string
-  detail: string
-  tone: StatusTone
+type ApiResponse = {
+  ok: boolean
+  data?: DashboardPayload
+  error?: string | null
 }
 
-type EventRow = {
-  time: string
-  source: string
-  level: string
-  message: string
-  tone: StatusTone
+function formatBytes(bytes?: number) {
+  if (bytes === undefined || Number.isNaN(bytes)) return 'n/a'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let value = bytes
+  let index = 0
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024
+    index += 1
+  }
+  return `${value.toFixed(value >= 100 || index === 0 ? 0 : 1)} ${units[index]}`
 }
 
-type ProcessRow = {
-  name: string
-  cpu: string
-  memory: string
-  note: string
+function formatNumber(value?: number | null, suffix = '') {
+  if (value === undefined || value === null || Number.isNaN(value)) return 'n/a'
+  return `${value}${suffix}`
 }
 
-const overviewCards: MetricCard[] = [
-  {
-    label: 'CPU Load',
-    value: '37.1%',
-    detail: 'Current total processor time',
-    tone: 'warn',
-  },
-  {
-    label: 'Memory Free',
-    value: '20.1 GB',
-    detail: '20.1 / 31.9 GB visible RAM available',
-    tone: 'good',
-  },
-  {
-    label: 'Disk Free',
-    value: '375.4 GB',
-    detail: 'System drive C: free capacity',
-    tone: 'good',
-  },
-  {
-    label: 'Network Throughput',
-    value: '9.1 KB/s',
-    detail: 'Intel I211 live interface traffic snapshot',
-    tone: 'info',
-  },
-]
+function formatDate(value?: string) {
+  if (!value) return 'n/a'
+  return new Date(value).toLocaleString()
+}
 
-const securityCards: MetricCard[] = [
-  {
-    label: 'Windows Defender',
-    value: 'Protected',
-    detail: 'Realtime, behavior, IOAV and signatures enabled',
-    tone: 'good',
-  },
-  {
-    label: 'Firewall',
-    value: 'Enabled',
-    detail: 'Domain, Private and Public profiles active',
-    tone: 'good',
-  },
-  {
-    label: 'OpenClaw Audit',
-    value: 'Pending output',
-    detail: 'Deep audit command started, result not returned yet',
-    tone: 'warn',
-  },
-  {
-    label: 'OpenClaw Version',
-    value: 'Update available',
-    detail: 'Stable channel, npm update 2026.4.9 available',
-    tone: 'warn',
-  },
-]
-
-const serviceRows: ServiceRow[] = [
-  {
-    name: 'OpenClaw Gateway',
-    status: 'Inspecting',
-    port: 'pending',
-    detail: 'Waiting for deep status command output',
-    tone: 'info',
-  },
-  {
-    name: 'Microsoft Defender',
-    status: 'Online',
-    port: 'system',
-    detail: 'Realtime protection and signatures healthy',
-    tone: 'good',
-  },
-  {
-    name: 'Windows Firewall',
-    status: 'Online',
-    port: 'system',
-    detail: 'All firewall profiles enabled',
-    tone: 'good',
-  },
-  {
-    name: 'SQL Server',
-    status: 'Observed',
-    port: 'unknown',
-    detail: 'sqlservr is active and consuming resources',
-    tone: 'warn',
-  },
-]
-
-const topProcesses: ProcessRow[] = [
-  { name: 'System', cpu: '20645.48', memory: '16.5 MB', note: 'Kernel/system services' },
-  { name: 'iCUE', cpu: '8998.83', memory: '129.7 MB', note: 'Corsair device control' },
-  { name: 'Discord', cpu: '7922.31', memory: '438.3 MB', note: 'User desktop workload' },
-  { name: 'dwm', cpu: '6768.48', memory: '105.7 MB', note: 'Desktop compositor' },
-  { name: 'sqlservr', cpu: '5356.22', memory: '117.7 MB', note: 'Database engine' },
-  { name: 'Corsair.Service', cpu: '2450.45', memory: '840.1 MB', note: 'High resident memory' },
-]
-
-const events: EventRow[] = [
-  {
-    time: '13:54',
-    source: 'e1rexpress',
-    level: 'Information',
-    message: 'Intel I211 link established at 1 Gbps full duplex.',
-    tone: 'good',
-  },
-  {
-    time: '13:54',
-    source: 'e1rexpress',
-    level: 'Warning',
-    message: 'Network link disconnected shortly before reconnecting.',
-    tone: 'warn',
-  },
-  {
-    time: '13:49',
-    source: 'Hyper-V VmSwitch',
-    level: 'Information',
-    message: 'WSL Hyper-V firewall virtual switch port deleted cleanly.',
-    tone: 'info',
-  },
-  {
-    time: '13:21',
-    source: 'Hyper-V VmSwitch',
-    level: 'Information',
-    message: 'WSL virtual networking initialized and attached successfully.',
-    tone: 'info',
-  },
-]
-
-const connectionStats = [
-  { state: 'Established', value: 55 },
-  { state: 'Listen', value: 37 },
-  { state: 'Bound', value: 50 },
-  { state: 'TimeWait', value: 4 },
-  { state: 'CloseWait', value: 3 },
-  { state: 'FinWait2', value: 1 },
-]
-
-const disks = [
-  { name: 'C:', used: 62, free: '375.4 GB free / 998.7 GB total' },
-  { name: 'X:', used: 84, free: '318.7 GB free / 1.89 TB total' },
-]
-
-const adapters = [
-  {
-    name: 'Ethernet 2',
-    rx: '1.26 GB',
-    tx: '33.3 MB',
-    packets: '944k in / 207k out',
-  },
-  {
-    name: 'vEthernet (WSL)',
-    rx: '5.3 MB',
-    tx: '566.9 MB',
-    packets: '61k in / 103k out',
-  },
-]
-
-function toneClass(tone: StatusTone = 'info') {
+function toneClass(tone: Tone = 'info') {
   return `tone-${tone}`
 }
 
-function MetricGrid({ title, subtitle, cards }: { title: string; subtitle: string; cards: MetricCard[] }) {
+function metricTone(value: number, warn: number, critical: number): Tone {
+  if (value >= critical) return 'critical'
+  if (value >= warn) return 'warn'
+  return 'good'
+}
+
+function MiniChart({ values, color = 'var(--accent)' }: { values: number[]; color?: string }) {
+  const points = useMemo(() => {
+    if (!values.length) return ''
+    const max = Math.max(...values, 1)
+    return values
+      .map((value, index) => {
+        const x = (index / Math.max(values.length - 1, 1)) * 100
+        const y = 100 - (value / max) * 100
+        return `${x},${y}`
+      })
+      .join(' ')
+  }, [values])
+
   return (
-    <section className="panel">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">{title}</p>
-          <h2>{subtitle}</h2>
-        </div>
-      </div>
-      <div className="metric-grid">
-        {cards.map((card) => (
-          <article key={card.label} className={`metric-card ${toneClass(card.tone)}`}>
-            <span className="metric-label">{card.label}</span>
-            <strong className="metric-value">{card.value}</strong>
-            <span className="metric-detail">{card.detail}</span>
-          </article>
-        ))}
-      </div>
-    </section>
+    <svg viewBox="0 0 100 100" className="mini-chart" preserveAspectRatio="none">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="3" strokeLinecap="round" />
+    </svg>
   )
 }
 
 function App() {
+  const [payload, setPayload] = useState<DashboardPayload | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadData = useCallback(async (force = false) => {
+    try {
+      force ? setRefreshing(true) : setLoading(true)
+      const response = await fetch(force ? '/api/refresh' : '/api/dashboard', {
+        method: force ? 'POST' : 'GET',
+      })
+      const json = (await response.json()) as ApiResponse
+      if (!json.ok || !json.data) {
+        throw new Error(json.error ?? 'Failed to load dashboard data')
+      }
+      setPayload(json.data)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown dashboard error')
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadData(false)
+    const timer = window.setInterval(() => void loadData(false), 15000)
+    return () => window.clearInterval(timer)
+  }, [loadData])
+
+  const cpuPercent = payload?.counters?.cpuPercent ?? 0
+  const memoryFree = payload?.os?.freePhysicalMemoryGB ?? 0
+  const memoryTotal = payload?.os?.totalVisibleMemoryGB ?? 0
+  const memoryUsedPercent = payload?.derived?.memoryUsedPercent ?? 0
+  const diskPrimary = payload?.disks?.[0]
+  const latency = payload?.internet?.latencyMs ?? null
+  const jitter = payload?.internet?.jitterMs ?? null
+  const networkTotal = (payload?.counters?.network ?? []).reduce((sum, item) => sum + item.value, 0)
+  const firewallEnabled = (payload?.firewall ?? []).every((profile) => profile.Enabled)
+  const defenderHealthy = Boolean(payload?.defender?.AntivirusEnabled && payload?.defender?.RealTimeProtectionEnabled)
+  const auditText = payload?.openclaw?.audit ?? ''
+  const updateText = payload?.openclaw?.updateStatus ?? ''
+  const auditTone: Tone = auditText.toLowerCase().includes('potential') || auditText.toLowerCase().includes('warning') ? 'warn' : 'good'
+  const updateTone: Tone = updateText.toLowerCase().includes('update available') ? 'warn' : 'good'
+  const history = payload?.history ?? []
+
+  const overviewCards: { label: string; value: string; detail: string; tone: Tone }[] = [
+    {
+      label: 'CPU Load',
+      value: `${cpuPercent.toFixed(1)}%`,
+      detail: 'Live total processor time',
+      tone: metricTone(cpuPercent, 65, 90),
+    },
+    {
+      label: 'Memory Pressure',
+      value: `${memoryUsedPercent.toFixed(1)}%`,
+      detail: `${memoryFree.toFixed(1)} GB free of ${memoryTotal.toFixed(1)} GB`,
+      tone: metricTone(memoryUsedPercent, 70, 85),
+    },
+    {
+      label: 'Primary Disk',
+      value: `${diskPrimary?.UsedPercent?.toFixed(1) ?? '0'}%`,
+      detail: `${diskPrimary?.FreeGB?.toFixed(1) ?? '0'} GB free on ${diskPrimary?.Name ?? 'C:'}`,
+      tone: metricTone(diskPrimary?.UsedPercent ?? 0, 75, 90),
+    },
+    {
+      label: 'Internet Latency',
+      value: latency === null ? 'offline' : `${latency} ms`,
+      detail: `Jitter ${formatNumber(jitter, ' ms')} to 1.1.1.1`,
+      tone: payload?.derived?.internetTone ?? 'info',
+    },
+  ]
+
+  const securityCards: { label: string; value: string; detail: string; tone: Tone }[] = [
+    {
+      label: 'Windows Defender',
+      value: defenderHealthy ? 'Protected' : 'Attention',
+      detail: `Signatures ${formatDate(payload?.defender?.AntivirusSignatureLastUpdated)}`,
+      tone: defenderHealthy ? 'good' : 'critical',
+    },
+    {
+      label: 'Firewall',
+      value: firewallEnabled ? 'Enabled' : 'Disabled',
+      detail: `${payload?.firewall?.length ?? 0} profiles checked`,
+      tone: firewallEnabled ? 'good' : 'critical',
+    },
+    {
+      label: 'OpenClaw Audit',
+      value: auditTone === 'good' ? 'Healthy' : 'Issues found',
+      detail: auditText.split('\n').find((line) => line.trim()) ?? 'Audit output loaded',
+      tone: auditTone,
+    },
+    {
+      label: 'OpenClaw Updates',
+      value: updateTone === 'warn' ? 'Available' : 'Current',
+      detail: updateText.split('\n').find((line) => line.includes('Update')) ?? 'Update status loaded',
+      tone: updateTone,
+    },
+  ]
+
+  if (loading) {
+    return <div className="loading-state">Loading live monitoring data…</div>
+  }
+
   return (
     <div className="dashboard-shell">
       <header className="hero-panel panel">
         <div>
-          <p className="eyebrow">Mario • Host Monitoring</p>
+          <p className="eyebrow">Mario • Live Monitoring</p>
           <h1>Server command center</h1>
           <p className="hero-copy">
-            Dark-mode operations dashboard for this machine, shaped around current Windows,
-            OpenClaw, security, process, network and log signals.
+            Live Windows and OpenClaw monitoring, refreshed automatically with local collector data.
           </p>
+          <div className="hero-meta">
+            <span>{payload?.host?.WindowsProductName ?? 'Windows host'}</span>
+            <span>{payload?.host?.WindowsVersion ?? 'n/a'}</span>
+            <span>Last sample {formatDate(payload?.timestamp)}</span>
+          </div>
         </div>
-        <div className="hero-stats">
-          <div className="hero-pill tone-good">Host online since 2026-04-07 18:49</div>
-          <div className="hero-pill tone-warn">OpenClaw update available</div>
-          <div className="hero-pill tone-info">37 listening sockets observed</div>
+        <div className="hero-actions">
+          <div className={`hero-pill ${toneClass(payload?.derived?.internetTone ?? 'info')}`}>
+            Internet {latency === null ? 'offline' : `${latency} ms`}
+          </div>
+          <div className={`hero-pill ${toneClass(metricTone(cpuPercent, 65, 90))}`}>
+            CPU {cpuPercent.toFixed(1)}%
+          </div>
+          <button className="refresh-button" onClick={() => void loadData(true)} disabled={refreshing}>
+            {refreshing ? 'Refreshing…' : 'Refresh now'}
+          </button>
         </div>
       </header>
 
-      <MetricGrid title="Overview" subtitle="Core health snapshot" cards={overviewCards} />
-      <MetricGrid title="Security" subtitle="Protection and posture" cards={securityCards} />
+      {error ? <div className="error-banner">{error}</div> : null}
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Overview</p>
+            <h2>Core health snapshot</h2>
+          </div>
+        </div>
+        <div className="metric-grid">
+          {overviewCards.map((card) => (
+            <article key={card.label} className={`metric-card ${toneClass(card.tone)}`}>
+              <span className="metric-label">{card.label}</span>
+              <strong className="metric-value">{card.value}</strong>
+              <span className="metric-detail">{card.detail}</span>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Security</p>
+            <h2>Protection and posture</h2>
+          </div>
+        </div>
+        <div className="metric-grid">
+          {securityCards.map((card) => (
+            <article key={card.label} className={`metric-card ${toneClass(card.tone)}`}>
+              <span className="metric-label">{card.label}</span>
+              <strong className="metric-value">{card.value}</strong>
+              <span className="metric-detail">{card.detail}</span>
+            </article>
+          ))}
+        </div>
+      </section>
 
       <section className="two-column">
         <article className="panel">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Services</p>
-              <h2>Platform status</h2>
+              <p className="eyebrow">History</p>
+              <h2>Recent trend lines</h2>
             </div>
           </div>
-          <div className="table-grid">
-            {serviceRows.map((row) => (
-              <div key={row.name} className="table-row">
-                <div>
-                  <strong>{row.name}</strong>
-                  <p>{row.detail}</p>
-                </div>
-                <div className="table-meta">
-                  <span className={`status-chip ${toneClass(row.tone)}`}>{row.status}</span>
-                  <span>{row.port}</span>
-                </div>
+          <div className="history-grid">
+            <div className="history-card">
+              <div className="bar-row-header">
+                <strong>CPU</strong>
+                <span>{cpuPercent.toFixed(1)}%</span>
               </div>
-            ))}
+              <MiniChart values={history.map((item) => item.cpuPercent)} color="var(--accent)" />
+            </div>
+            <div className="history-card">
+              <div className="bar-row-header">
+                <strong>Memory used</strong>
+                <span>{memoryUsedPercent.toFixed(1)}%</span>
+              </div>
+              <MiniChart values={history.map((item) => item.memoryUsedPercent)} color="var(--warn)" />
+            </div>
+            <div className="history-card">
+              <div className="bar-row-header">
+                <strong>Disk used</strong>
+                <span>{diskPrimary?.UsedPercent?.toFixed(1) ?? '0'}%</span>
+              </div>
+              <MiniChart values={history.map((item) => item.diskUsedPercent)} color="var(--good)" />
+            </div>
+            <div className="history-card">
+              <div className="bar-row-header">
+                <strong>Latency</strong>
+                <span>{latency === null ? 'n/a' : `${latency} ms`}</span>
+              </div>
+              <MiniChart values={history.map((item) => item.latencyMs ?? 0)} color="var(--accent-2)" />
+            </div>
           </div>
         </article>
 
@@ -266,14 +359,14 @@ function App() {
             </div>
           </div>
           <div className="bar-list">
-            {connectionStats.map((item) => (
-              <div key={item.state} className="bar-row">
+            {(payload?.connections ?? []).map((item) => (
+              <div key={item.Name} className="bar-row">
                 <div className="bar-row-header">
-                  <span>{item.state}</span>
-                  <strong>{item.value}</strong>
+                  <span>{item.Name}</span>
+                  <strong>{item.Count}</strong>
                 </div>
                 <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${Math.max(item.value, 4)}%` }} />
+                  <div className="bar-fill" style={{ width: `${Math.min((item.Count ?? 0) * 1.8, 100)}%` }} />
                 </div>
               </div>
             ))}
@@ -290,15 +383,15 @@ function App() {
             </div>
           </div>
           <div className="process-list">
-            {topProcesses.map((process) => (
-              <div key={process.name} className="process-row">
+            {(payload?.processes ?? []).map((process) => (
+              <div key={`${process.ProcessName}-${process.Id}`} className="process-row">
                 <div>
-                  <strong>{process.name}</strong>
-                  <p>{process.note}</p>
+                  <strong>{process.ProcessName}</strong>
+                  <p>PID {process.Id}</p>
                 </div>
                 <div className="process-metrics">
-                  <span>CPU {process.cpu}</span>
-                  <span>RAM {process.memory}</span>
+                  <span>CPU {formatNumber(process.CPU)}</span>
+                  <span>RAM {formatNumber(process.WSMB, ' MB')}</span>
                 </div>
               </div>
             ))}
@@ -313,16 +406,18 @@ function App() {
             </div>
           </div>
           <div className="disk-list">
-            {disks.map((disk) => (
-              <div key={disk.name} className="disk-card">
+            {(payload?.disks ?? []).map((disk) => (
+              <div key={disk.Name} className="disk-card">
                 <div className="bar-row-header">
-                  <strong>{disk.name}</strong>
-                  <span>{disk.used}% used</span>
+                  <strong>{disk.Name}</strong>
+                  <span>{disk.UsedPercent?.toFixed(1)}% used</span>
                 </div>
                 <div className="bar-track large">
-                  <div className="bar-fill" style={{ width: `${disk.used}%` }} />
+                  <div className="bar-fill" style={{ width: `${disk.UsedPercent ?? 0}%` }} />
                 </div>
-                <p>{disk.free}</p>
+                <p>
+                  {disk.FreeGB?.toFixed(1)} GB free / {disk.UsedGB?.toFixed(1)} GB used
+                </p>
               </div>
             ))}
           </div>
@@ -334,38 +429,51 @@ function App() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">Adapters</p>
-              <h2>Network interface counters</h2>
+              <h2>Network interfaces</h2>
             </div>
           </div>
           <div className="table-grid">
-            {adapters.map((adapter) => (
-              <div key={adapter.name} className="table-row compact">
+            {(payload?.adapters ?? []).map((adapter) => (
+              <div key={adapter.Name} className="table-row compact">
                 <div>
-                  <strong>{adapter.name}</strong>
-                  <p>{adapter.packets}</p>
+                  <strong>{adapter.Name}</strong>
+                  <p>
+                    Packets {formatNumber(adapter.ReceivedUnicastPackets)} in / {formatNumber(adapter.SentUnicastPackets)} out
+                  </p>
                 </div>
                 <div className="process-metrics align-right">
-                  <span>RX {adapter.rx}</span>
-                  <span>TX {adapter.tx}</span>
+                  <span>RX {formatBytes(adapter.ReceivedBytes)}</span>
+                  <span>TX {formatBytes(adapter.SentBytes)}</span>
                 </div>
               </div>
             ))}
+            <div className="table-row compact">
+              <div>
+                <strong>Aggregate throughput</strong>
+                <p>All reported network interfaces</p>
+              </div>
+              <div className="process-metrics align-right">
+                <span>{formatBytes(networkTotal)}/s</span>
+              </div>
+            </div>
           </div>
         </article>
 
         <article className="panel">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">Actions</p>
-              <h2>Next improvements</h2>
+              <p className="eyebrow">OpenClaw</p>
+              <h2>Runtime and security output</h2>
             </div>
           </div>
-          <ul className="action-list">
-            <li>Replace snapshot values with live PowerShell or Node collectors on an interval.</li>
-            <li>Finish parsing pending OpenClaw deep status and deep audit results.</li>
-            <li>Add internet latency, jitter and speed-test history with scheduled sampling.</li>
-            <li>Add alert thresholds and notification routing for critical signals.</li>
-          </ul>
+          <div className="terminal-card">
+            <h3>Status</h3>
+            <pre>{payload?.openclaw?.status ?? 'n/a'}</pre>
+            <h3>Update status</h3>
+            <pre>{payload?.openclaw?.updateStatus ?? 'n/a'}</pre>
+            <h3>Security audit</h3>
+            <pre>{payload?.openclaw?.audit ?? 'n/a'}</pre>
+          </div>
         </article>
       </section>
 
@@ -377,19 +485,23 @@ function App() {
           </div>
         </div>
         <div className="event-list">
-          {events.map((event, index) => (
-            <div key={`${event.time}-${index}`} className="event-row">
-              <div className={`event-marker ${toneClass(event.tone)}`} />
-              <div className="event-time">{event.time}</div>
-              <div>
-                <div className="event-headline">
-                  <strong>{event.source}</strong>
-                  <span>{event.level}</span>
+          {(payload?.events ?? []).slice(0, 8).map((event, index) => {
+            const level = event.LevelDisplayName ?? 'Information'
+            const tone: Tone = /error/i.test(level) ? 'critical' : /warn/i.test(level) ? 'warn' : 'info'
+            return (
+              <div key={`${event.TimeCreated}-${index}`} className="event-row">
+                <div className={`event-marker ${toneClass(tone)}`} />
+                <div className="event-time">{new Date(event.TimeCreated ?? '').toLocaleTimeString()}</div>
+                <div>
+                  <div className="event-headline">
+                    <strong>{event.ProviderName}</strong>
+                    <span>{event.LevelDisplayName}</span>
+                  </div>
+                  <p>{event.Message?.replace(/\s+/g, ' ').trim()}</p>
                 </div>
-                <p>{event.message}</p>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </section>
     </div>
