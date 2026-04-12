@@ -257,6 +257,52 @@ h3 {
   gap: 14px;
 }
 
+.search-panel {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 280px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  padding: 14px 16px;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: rgba(255, 246, 242, 0.55);
+}
+
+.search-hint {
+  margin-top: 14px;
+  color: var(--muted);
+}
+
+.branch-overview-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.95fr;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.branch-detail-column,
+.branch-copilot-column {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.vendor-detail-card,
+.branch-copilot-card {
+  margin-top: 0;
+}
+
 .vendor-card {
   position: relative;
   overflow: hidden;
@@ -603,7 +649,8 @@ h3 {
   .vendor-grid,
   .metric-grid-three,
   .copilot-highlight-grid,
-  .copilot-layout {
+  .copilot-layout,
+  .branch-overview-grid {
     grid-template-columns: 1fr;
   }
 

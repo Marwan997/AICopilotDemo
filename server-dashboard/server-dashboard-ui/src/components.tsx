@@ -24,12 +24,189 @@ export function MiniChart({ values, color = 'var(--accent)' }: { values: number[
   )
 }
 
-export function CopilotView({ selectedVendor, onSelectVendor }: { selectedVendor: VendorCase; onSelectVendor: (vendor: VendorCase) => void }) {
-  const tone = classificationTone(selectedVendor.classification)
+function VendorDetailCard({ vendor }: { vendor: VendorCase }) {
+  const tone = classificationTone(vendor.classification)
+
+  return (
+    <article className="panel vendor-detail-card">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Vendor detail</p>
+          <h2>
+            Vendor {vendor.vendorId} • {vendor.city}
+          </h2>
+        </div>
+        <span className={`status-chip tone-${tone}`}>{vendor.classification}</span>
+      </div>
+
+      <div className="metric-grid metric-grid-three">
+        <article className="metric-card tone-info">
+          <span className="metric-label">Orders trend</span>
+          <strong className="metric-value">{vendor.kpis.ordersTrendPct.toFixed(1)}%</strong>
+          <span className="metric-detail">
+            {vendor.kpis.deliveredOrdersRecent} vs {vendor.kpis.deliveredOrdersPrev} delivered orders
+          </span>
+        </article>
+        <article className="metric-card tone-info">
+          <span className="metric-label">GMV trend</span>
+          <strong className="metric-value">{vendor.kpis.gmvTrendPct.toFixed(1)}%</strong>
+          <span className="metric-detail">
+            {formatMoney(vendor.kpis.deliveredGmvRecent)} vs {formatMoney(vendor.kpis.deliveredGmvPrev)}
+          </span>
+        </article>
+        <article className={`metric-card tone-${tone}`}>
+          <span className="metric-label">AOV</span>
+          <strong className="metric-value">{formatMoney(vendor.kpis.avgOrderValueRecent)}</strong>
+          <span className="metric-detail">Current recent-period average order value</span>
+        </article>
+      </div>
+
+      <div className="score-grid">
+        <div className="score-card"><div className="bar-row-header"><strong>Growth</strong><span>{vendor.scores.growth.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${vendor.scores.growth}%` }} /></div></div>
+        <div className="score-card"><div className="bar-row-header"><strong>Quality</strong><span>{vendor.scores.quality.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${vendor.scores.quality}%` }} /></div></div>
+        <div className="score-card"><div className="bar-row-header"><strong>Efficiency</strong><span>{vendor.scores.efficiency.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${vendor.scores.efficiency}%` }} /></div></div>
+        <div className="score-card"><div className="bar-row-header"><strong>Seasonality</strong><span>{vendor.scores.seasonality.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${vendor.scores.seasonality}%` }} /></div></div>
+        <div className="score-card"><div className="bar-row-header"><strong>Benchmark</strong><span>{vendor.scores.benchmark.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${vendor.scores.benchmark}%` }} /></div></div>
+      </div>
+
+      <div className="two-column two-column-tight">
+        <div className="panel inset-panel">
+          <div className="section-heading compact-heading">
+            <div>
+              <p className="eyebrow">Quality and support</p>
+              <h3>Operational KPIs</h3>
+            </div>
+          </div>
+          <div className="kpi-list">
+            <div className="table-row compact"><strong>Delivered rate</strong><span>{formatPercent(vendor.kpis.deliveredRateRecent)}</span></div>
+            <div className="table-row compact"><strong>Decline rate</strong><span>{formatPercent(vendor.kpis.declineRateRecent)}</span></div>
+            <div className="table-row compact"><strong>Cancel rate</strong><span>{formatPercent(vendor.kpis.cancelRateRecent)}</span></div>
+            <div className="table-row compact"><strong>Free delivery rate</strong><span>{formatPercent(vendor.kpis.freeDeliveryRateRecent)}</span></div>
+            <div className="table-row compact"><strong>Subsidy ratio</strong><span>{formatPercent(vendor.kpis.subsidyRatioRecent, 2)}</span></div>
+            <div className="table-row compact"><strong>Net take ratio</strong><span>{formatPercent(vendor.kpis.netTakeRatioRecent, 2)}</span></div>
+          </div>
+        </div>
+
+        <div className="panel inset-panel">
+          <div className="section-heading compact-heading">
+            <div>
+              <p className="eyebrow">Peer position</p>
+              <h3>Benchmark percentiles</h3>
+            </div>
+          </div>
+          <div className="bar-list">
+            {[
+              ['Orders', vendor.benchmarks.ordersPercentile],
+              ['GMV', vendor.benchmarks.gmvPercentile],
+              ['AOV', vendor.benchmarks.aovPercentile],
+              ['Quality', vendor.benchmarks.qualityPercentile],
+              ['Efficiency', vendor.benchmarks.efficiencyPercentile],
+            ].map(([label, value]) => (
+              <div key={String(label)} className="bar-row">
+                <div className="bar-row-header">
+                  <span>{label}</span>
+                  <strong>{Number(value).toFixed(1)}</strong>
+                </div>
+                <div className="bar-track">
+                  <div className="bar-fill" style={{ width: `${Number(value)}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function CopilotCard({ vendor }: { vendor: VendorCase }) {
+  const tone = classificationTone(vendor.classification)
+
+  return (
+    <article className="panel copilot-panel branch-copilot-card">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">AI Copilot</p>
+          <h2>
+            Vendor {vendor.vendorId} • {vendor.city}
+          </h2>
+        </div>
+        <span className={`status-chip tone-${tone}`}>{vendor.classification}</span>
+      </div>
+
+      <div className="copilot-highlight-grid">
+        <div className="copilot-highlight-card">
+          <span className="copilot-highlight-label">Narrative</span>
+          <p>{vendor.summary}</p>
+        </div>
+        <div className="copilot-highlight-card">
+          <span className="copilot-highlight-label">AM move</span>
+          <p>{vendor.actionHint}</p>
+        </div>
+      </div>
+
+      <div className="copilot-block">
+        <h3>Performance summary</h3>
+        <p>{vendor.copilot.performanceSummary}</p>
+      </div>
+
+      <div className="copilot-block">
+        <h3>Likely causes</h3>
+        <ul className="action-list">
+          {vendor.copilot.likelyCauses.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="copilot-block">
+        <h3>Top 3 AM actions</h3>
+        <ol className="action-list ordered-list">
+          {vendor.copilot.actions.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ol>
+      </div>
+
+      <div className="copilot-block">
+        <h3>Merchant talking points</h3>
+        <ul className="action-list">
+          {vendor.copilot.talkingPoints.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div className={`copilot-watchout tone-${tone}`}>
+        <strong>Watchout</strong>
+        <p>{vendor.copilot.watchout}</p>
+      </div>
+    </article>
+  )
+}
+
+export function CopilotView({
+  chefSearch,
+  onChefSearchChange,
+  selectedChefId,
+  chefBranches,
+  selectedVendor,
+  onSelectVendor,
+}: {
+  chefSearch: string
+  onChefSearchChange: (value: string) => void
+  selectedChefId: number | null
+  chefBranches: VendorCase[]
+  selectedVendor: VendorCase | null
+  onSelectVendor: (vendor: VendorCase | null) => void
+}) {
   const classCounts = vendorCases.reduce<Record<string, number>>((acc, vendor) => {
     acc[vendor.classification] = (acc[vendor.classification] ?? 0) + 1
     return acc
   }, {})
+
+  const showChefResults = Boolean(selectedChefId !== null && chefBranches.length > 0)
+  const branchCards = selectedVendor ? [selectedVendor] : chefBranches
 
   return (
     <>
@@ -43,10 +220,10 @@ export function CopilotView({ selectedVendor, onSelectVendor }: { selectedVendor
             </div>
           </div>
           <p className="hero-copy">
-            Deterministic branch analytics on the left, AI-ready recommendations on the right. This is the live competition demo view for account managers.
+            Search by main_chef_id first, review all branches for that chef, then drill into a specific branch only when needed.
           </p>
           <div className="hero-meta">
-            <span>5 curated vendors</span>
+            <span>Search by main_chef_id</span>
             <span>Branch-level analytics</span>
             <span>AI explains and recommends, it does not invent KPIs</span>
           </div>
@@ -61,192 +238,86 @@ export function CopilotView({ selectedVendor, onSelectVendor }: { selectedVendor
       <section className="panel">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Portfolio overview</p>
-            <h2>Curated demo vendors</h2>
+            <p className="eyebrow">Chef search</p>
+            <h2>Find branches by main_chef_id</h2>
           </div>
         </div>
-        <div className="vendor-grid">
-          {vendorCases.map((vendor) => {
-            const selected = vendor.vendorId === selectedVendor.vendorId
-            const vendorTone = classificationTone(vendor.classification)
-            return (
-              <button
-                key={vendor.vendorId}
-                className={`vendor-card ${selected ? 'vendor-card-selected' : ''}`}
-                onClick={() => onSelectVendor(vendor)}
-              >
-                <div className="vendor-card-header">
-                  <div>
-                    <strong>Vendor {vendor.vendorId}</strong>
-                    <p>
-                      {vendor.city} • {vendor.cuisine}
-                    </p>
-                  </div>
-                  <span className={`status-chip tone-${vendorTone}`}>{vendor.classification}</span>
-                </div>
-                <div className="vendor-score-row">
-                  <span>Final score</span>
-                  <strong>{vendor.finalScore.toFixed(1)}</strong>
-                </div>
-                <p className="vendor-summary">{vendor.summary}</p>
-                <div className="vendor-tags">
-                  <span className="subtle-tag">Story {vendor.storyTag}</span>
-                  <span className="subtle-tag">Chef {vendor.mainChefId}</span>
-                </div>
-              </button>
-            )
-          })}
+        <div className="search-panel">
+          <input
+            className="search-input"
+            type="text"
+            inputMode="numeric"
+            placeholder="Enter main_chef_id, for example 1001"
+            value={chefSearch}
+            onChange={(event) => onChefSearchChange(event.target.value)}
+          />
+          {selectedChefId !== null ? (
+            <button className="toggle-button" onClick={() => onSelectVendor(null)}>
+              Show all chef branches
+            </button>
+          ) : null}
         </div>
+        {chefSearch && !showChefResults ? <p className="search-hint">No branches found for that main_chef_id.</p> : null}
+        {!chefSearch ? <p className="search-hint">Start with a main_chef_id to load the branch portfolio.</p> : null}
       </section>
 
-      <section className="three-column-layout copilot-layout">
-        <article className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Vendor detail</p>
-              <h2>
-                Vendor {selectedVendor.vendorId} • {selectedVendor.city}
-              </h2>
-            </div>
-            <span className={`status-chip tone-${tone}`}>{selectedVendor.classification}</span>
-          </div>
-
-          <div className="metric-grid metric-grid-three">
-            <article className="metric-card tone-info">
-              <span className="metric-label">Orders trend</span>
-              <strong className="metric-value">{selectedVendor.kpis.ordersTrendPct.toFixed(1)}%</strong>
-              <span className="metric-detail">
-                {selectedVendor.kpis.deliveredOrdersRecent} vs {selectedVendor.kpis.deliveredOrdersPrev} delivered orders
-              </span>
-            </article>
-            <article className="metric-card tone-info">
-              <span className="metric-label">GMV trend</span>
-              <strong className="metric-value">{selectedVendor.kpis.gmvTrendPct.toFixed(1)}%</strong>
-              <span className="metric-detail">
-                {formatMoney(selectedVendor.kpis.deliveredGmvRecent)} vs {formatMoney(selectedVendor.kpis.deliveredGmvPrev)}
-              </span>
-            </article>
-            <article className={`metric-card tone-${tone}`}>
-              <span className="metric-label">AOV</span>
-              <strong className="metric-value">{formatMoney(selectedVendor.kpis.avgOrderValueRecent)}</strong>
-              <span className="metric-detail">Current recent-period average order value</span>
-            </article>
-          </div>
-
-          <div className="score-grid">
-            <div className="score-card"><div className="bar-row-header"><strong>Growth</strong><span>{selectedVendor.scores.growth.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${selectedVendor.scores.growth}%` }} /></div></div>
-            <div className="score-card"><div className="bar-row-header"><strong>Quality</strong><span>{selectedVendor.scores.quality.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${selectedVendor.scores.quality}%` }} /></div></div>
-            <div className="score-card"><div className="bar-row-header"><strong>Efficiency</strong><span>{selectedVendor.scores.efficiency.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${selectedVendor.scores.efficiency}%` }} /></div></div>
-            <div className="score-card"><div className="bar-row-header"><strong>Seasonality</strong><span>{selectedVendor.scores.seasonality.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${selectedVendor.scores.seasonality}%` }} /></div></div>
-            <div className="score-card"><div className="bar-row-header"><strong>Benchmark</strong><span>{selectedVendor.scores.benchmark.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${selectedVendor.scores.benchmark}%` }} /></div></div>
-          </div>
-
-          <div className="two-column two-column-tight">
-            <div className="panel inset-panel">
-              <div className="section-heading compact-heading">
-                <div>
-                  <p className="eyebrow">Quality and support</p>
-                  <h3>Operational KPIs</h3>
-                </div>
-              </div>
-              <div className="kpi-list">
-                <div className="table-row compact"><strong>Delivered rate</strong><span>{formatPercent(selectedVendor.kpis.deliveredRateRecent)}</span></div>
-                <div className="table-row compact"><strong>Decline rate</strong><span>{formatPercent(selectedVendor.kpis.declineRateRecent)}</span></div>
-                <div className="table-row compact"><strong>Cancel rate</strong><span>{formatPercent(selectedVendor.kpis.cancelRateRecent)}</span></div>
-                <div className="table-row compact"><strong>Free delivery rate</strong><span>{formatPercent(selectedVendor.kpis.freeDeliveryRateRecent)}</span></div>
-                <div className="table-row compact"><strong>Subsidy ratio</strong><span>{formatPercent(selectedVendor.kpis.subsidyRatioRecent, 2)}</span></div>
-                <div className="table-row compact"><strong>Net take ratio</strong><span>{formatPercent(selectedVendor.kpis.netTakeRatioRecent, 2)}</span></div>
+      {showChefResults ? (
+        <>
+          <section className="panel">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Branch selector</p>
+                <h2>Main chef {selectedChefId} branch portfolio</h2>
               </div>
             </div>
-
-            <div className="panel inset-panel">
-              <div className="section-heading compact-heading">
-                <div>
-                  <p className="eyebrow">Peer position</p>
-                  <h3>Benchmark percentiles</h3>
-                </div>
-              </div>
-              <div className="bar-list">
-                {[
-                  ['Orders', selectedVendor.benchmarks.ordersPercentile],
-                  ['GMV', selectedVendor.benchmarks.gmvPercentile],
-                  ['AOV', selectedVendor.benchmarks.aovPercentile],
-                  ['Quality', selectedVendor.benchmarks.qualityPercentile],
-                  ['Efficiency', selectedVendor.benchmarks.efficiencyPercentile],
-                ].map(([label, value]) => (
-                  <div key={String(label)} className="bar-row">
-                    <div className="bar-row-header">
-                      <span>{label}</span>
-                      <strong>{Number(value).toFixed(1)}</strong>
+            <div className="vendor-grid">
+              {chefBranches.map((vendor) => {
+                const vendorTone = classificationTone(vendor.classification)
+                const selected = selectedVendor?.vendorId === vendor.vendorId
+                return (
+                  <button
+                    key={vendor.vendorId}
+                    className={`vendor-card ${selected ? 'vendor-card-selected' : ''}`}
+                    onClick={() => onSelectVendor(selected ? null : vendor)}
+                  >
+                    <div className="vendor-card-header">
+                      <div>
+                        <strong>Vendor {vendor.vendorId}</strong>
+                        <p>
+                          {vendor.city} • {vendor.cuisine}
+                        </p>
+                      </div>
+                      <span className={`status-chip tone-${vendorTone}`}>{vendor.classification}</span>
                     </div>
-                    <div className="bar-track">
-                      <div className="bar-fill" style={{ width: `${Number(value)}%` }} />
+                    <div className="vendor-score-row">
+                      <span>Final score</span>
+                      <strong>{vendor.finalScore.toFixed(1)}</strong>
                     </div>
-                  </div>
-                ))}
-              </div>
+                    <p className="vendor-summary">{vendor.summary}</p>
+                    <div className="vendor-tags">
+                      <span className="subtle-tag">Branch {vendor.vendorId}</span>
+                      <span className="subtle-tag">Chef {vendor.mainChefId}</span>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
-          </div>
-        </article>
+          </section>
 
-        <article className="panel copilot-panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">AI Copilot</p>
-              <h2>AM recommendation panel</h2>
-            </div>
-            <span className={`status-chip tone-${tone}`}>Live demo</span>
-          </div>
-
-          <div className="copilot-highlight-grid">
-            <div className="copilot-highlight-card">
-              <span className="copilot-highlight-label">Narrative</span>
-              <p>{selectedVendor.summary}</p>
-            </div>
-            <div className="copilot-highlight-card">
-              <span className="copilot-highlight-label">AM move</span>
-              <p>{selectedVendor.actionHint}</p>
-            </div>
-          </div>
-
-          <div className="copilot-block">
-            <h3>Performance summary</h3>
-            <p>{selectedVendor.copilot.performanceSummary}</p>
-          </div>
-
-          <div className="copilot-block">
-            <h3>Likely causes</h3>
-            <ul className="action-list">
-              {selectedVendor.copilot.likelyCauses.map((item) => (
-                <li key={item}>{item}</li>
+          <section className="branch-overview-grid">
+            <div className="branch-detail-column">
+              {branchCards.map((vendor) => (
+                <VendorDetailCard key={`detail-${vendor.vendorId}`} vendor={vendor} />
               ))}
-            </ul>
-          </div>
-
-          <div className="copilot-block">
-            <h3>Top 3 AM actions</h3>
-            <ol className="action-list ordered-list">
-              {selectedVendor.copilot.actions.map((item) => (
-                <li key={item}>{item}</li>
+            </div>
+            <div className="branch-copilot-column">
+              {branchCards.map((vendor) => (
+                <CopilotCard key={`copilot-${vendor.vendorId}`} vendor={vendor} />
               ))}
-            </ol>
-          </div>
-
-          <div className="copilot-block">
-            <h3>Merchant talking points</h3>
-            <ul className="action-list">
-              {selectedVendor.copilot.talkingPoints.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </div>
-
-          <div className={`copilot-watchout tone-${tone}`}>
-            <strong>Watchout</strong>
-            <p>{selectedVendor.copilot.watchout}</p>
-          </div>
-        </article>
-      </section>
+            </div>
+          </section>
+        </>
+      ) : null}
     </>
   )
 }

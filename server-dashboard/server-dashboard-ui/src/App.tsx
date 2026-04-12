@@ -10,11 +10,24 @@ function App() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('copilot')
-  const [selectedVendorId, setSelectedVendorId] = useState<number>(vendorCases[0].vendorId)
+  const [chefSearch, setChefSearch] = useState('')
+  const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
+
+  const selectedChefId = useMemo(() => {
+    const trimmed = chefSearch.trim()
+    if (!trimmed) return null
+    const parsed = Number(trimmed)
+    return Number.isInteger(parsed) ? parsed : null
+  }, [chefSearch])
+
+  const chefBranches = useMemo(
+    () => (selectedChefId === null ? [] : vendorCases.filter((vendor) => vendor.mainChefId === selectedChefId)),
+    [selectedChefId],
+  )
 
   const selectedVendor = useMemo(
-    () => vendorCases.find((vendor) => vendor.vendorId === selectedVendorId) ?? vendorCases[0],
-    [selectedVendorId],
+    () => chefBranches.find((vendor) => vendor.vendorId === selectedVendorId) ?? null,
+    [chefBranches, selectedVendorId],
   )
 
   const loadData = useCallback(async (force = false) => {
@@ -66,7 +79,17 @@ function App() {
       </div>
 
       {viewMode === 'copilot' ? (
-        <CopilotView selectedVendor={selectedVendor} onSelectVendor={(vendor) => setSelectedVendorId(vendor.vendorId)} />
+        <CopilotView
+          chefSearch={chefSearch}
+          onChefSearchChange={(value) => {
+            setChefSearch(value)
+            setSelectedVendorId(null)
+          }}
+          selectedChefId={selectedChefId}
+          chefBranches={chefBranches}
+          selectedVendor={selectedVendor}
+          onSelectVendor={(vendor) => setSelectedVendorId(vendor?.vendorId ?? null)}
+        />
       ) : (
         <MonitoringView
           payload={payload}
