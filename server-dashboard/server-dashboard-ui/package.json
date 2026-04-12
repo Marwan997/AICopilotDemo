@@ -7,6 +7,7 @@
     "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "tsc -b && vite build",
     "serve": "vite preview --host 127.0.0.1 --port 5173 --strictPort",
+    "deploy": "npm run build",
     "lint": "eslint .",
     "preview": "vite preview --host 127.0.0.1 --port 5173 --strictPort"
   },
