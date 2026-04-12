@@ -31,82 +31,32 @@ export function CopilotView({ selectedVendor, onSelectVendor }: { selectedVendor
     return acc
   }, {})
 
-  const executiveMetrics = [
-    {
-      label: 'Final score',
-      value: selectedVendor.finalScore.toFixed(1),
-      detail: selectedVendor.classification,
-    },
-    {
-      label: 'Orders growth',
-      value: `${selectedVendor.kpis.ordersTrendPct.toFixed(1)}%`,
-      detail: `${selectedVendor.kpis.deliveredOrdersRecent} recent delivered orders`,
-    },
-    {
-      label: 'GMV growth',
-      value: `${selectedVendor.kpis.gmvTrendPct.toFixed(1)}%`,
-      detail: formatMoney(selectedVendor.kpis.deliveredGmvRecent),
-    },
-    {
-      label: 'Priority action',
-      value: selectedVendor.reason,
-      detail: 'AI guidance anchored to deterministic analytics',
-    },
-  ]
-
   return (
     <>
-      <header className="hero-panel panel hero-panel-copilot upgraded-hero">
-        <div className="hero-copy-block">
+      <header className="hero-panel panel hero-panel-copilot">
+        <div>
           <div className="brand-lockup">
             <img src={chefzLogo} alt="The Chefz" className="brand-logo" />
             <div>
               <p className="eyebrow">Mario • Account Manager Copilot</p>
-              <h1>Executive vendor action center</h1>
+              <h1>Vendor action center</h1>
             </div>
           </div>
           <p className="hero-copy">
-            A sharper demo view for account managers. Deterministic branch analytics surfaces what changed, and the copilot translates it into crisp business actions.
+            Deterministic branch analytics on the left, AI-ready recommendations on the right. This is the live competition demo view for account managers.
           </p>
           <div className="hero-meta">
-            <span>Competition-ready narrative</span>
             <span>5 curated vendors</span>
-            <span>Chefz-branded AM workflow</span>
+            <span>Branch-level analytics</span>
+            <span>AI explains and recommends, it does not invent KPIs</span>
           </div>
         </div>
-
-        <div className="hero-summary-card">
-          <div className="hero-summary-topline">
-            <span className={`status-chip tone-${tone}`}>{selectedVendor.classification}</span>
-            <span className="hero-summary-city">{selectedVendor.city} • {selectedVendor.cuisine}</span>
-          </div>
-          <h2>Vendor {selectedVendor.vendorId}</h2>
-          <p>{selectedVendor.summary}</p>
-          <div className="hero-actions hero-actions-wide hero-action-stack">
-            <div className="hero-pill tone-good">Healthy {classCounts.Healthy ?? 0}</div>
-            <div className="hero-pill tone-info">High Potential {classCounts['High Potential'] ?? 0}</div>
-            <div className="hero-pill tone-critical">At Risk {classCounts['At Risk'] ?? 0}</div>
-          </div>
+        <div className="hero-actions hero-actions-wide">
+          <div className="hero-pill tone-good">Healthy {classCounts.Healthy ?? 0}</div>
+          <div className="hero-pill tone-info">High Potential {classCounts['High Potential'] ?? 0}</div>
+          <div className="hero-pill tone-critical">At Risk {classCounts['At Risk'] ?? 0}</div>
         </div>
       </header>
-
-      <section className="panel executive-strip-panel">
-        <div className="section-heading compact-section-heading">
-          <div>
-            <p className="eyebrow">Executive snapshot</p>
-            <h2>What matters right now</h2>
-          </div>
-        </div>
-        <div className="executive-strip">
-          {executiveMetrics.map((item) => (
-            <article key={item.label} className="executive-card">
-              <span className="executive-label">{item.label}</span>
-              <strong className="executive-value">{item.value}</strong>
-              <span className="executive-detail">{item.detail}</span>
-            </article>
-          ))}
-        </div>
-      </section>
 
       <section className="panel">
         <div className="section-heading">
@@ -115,14 +65,14 @@ export function CopilotView({ selectedVendor, onSelectVendor }: { selectedVendor
             <h2>Curated demo vendors</h2>
           </div>
         </div>
-        <div className="vendor-grid upgraded-vendor-grid">
+        <div className="vendor-grid">
           {vendorCases.map((vendor) => {
             const selected = vendor.vendorId === selectedVendor.vendorId
             const vendorTone = classificationTone(vendor.classification)
             return (
               <button
                 key={vendor.vendorId}
-                className={`vendor-card upgraded-vendor-card ${selected ? 'vendor-card-selected' : ''}`}
+                className={`vendor-card ${selected ? 'vendor-card-selected' : ''}`}
                 onClick={() => onSelectVendor(vendor)}
               >
                 <div className="vendor-card-header">
@@ -139,7 +89,7 @@ export function CopilotView({ selectedVendor, onSelectVendor }: { selectedVendor
                   <strong>{vendor.finalScore.toFixed(1)}</strong>
                 </div>
                 <p className="vendor-summary">{vendor.summary}</p>
-                <div className="vendor-card-footer">
+                <div className="vendor-tags">
                   <span className="subtle-tag">Story {vendor.storyTag}</span>
                   <span className="subtle-tag">Chef {vendor.mainChefId}</span>
                 </div>
@@ -149,8 +99,8 @@ export function CopilotView({ selectedVendor, onSelectVendor }: { selectedVendor
         </div>
       </section>
 
-      <section className="three-column-layout copilot-layout upgraded-copilot-layout">
-        <article className="panel detail-panel-upgraded">
+      <section className="three-column-layout copilot-layout">
+        <article className="panel">
           <div className="section-heading">
             <div>
               <p className="eyebrow">Vendor detail</p>
@@ -162,28 +112,28 @@ export function CopilotView({ selectedVendor, onSelectVendor }: { selectedVendor
           </div>
 
           <div className="metric-grid metric-grid-three">
-            <article className="metric-card tone-info emphasis-card">
+            <article className="metric-card tone-info">
               <span className="metric-label">Orders trend</span>
               <strong className="metric-value">{selectedVendor.kpis.ordersTrendPct.toFixed(1)}%</strong>
               <span className="metric-detail">
                 {selectedVendor.kpis.deliveredOrdersRecent} vs {selectedVendor.kpis.deliveredOrdersPrev} delivered orders
               </span>
             </article>
-            <article className="metric-card tone-info emphasis-card">
+            <article className="metric-card tone-info">
               <span className="metric-label">GMV trend</span>
               <strong className="metric-value">{selectedVendor.kpis.gmvTrendPct.toFixed(1)}%</strong>
               <span className="metric-detail">
                 {formatMoney(selectedVendor.kpis.deliveredGmvRecent)} vs {formatMoney(selectedVendor.kpis.deliveredGmvPrev)}
               </span>
             </article>
-            <article className={`metric-card tone-${tone} emphasis-card`}>
+            <article className={`metric-card tone-${tone}`}>
               <span className="metric-label">AOV</span>
               <strong className="metric-value">{formatMoney(selectedVendor.kpis.avgOrderValueRecent)}</strong>
               <span className="metric-detail">Current recent-period average order value</span>
             </article>
           </div>
 
-          <div className="score-grid upgraded-score-grid">
+          <div className="score-grid">
             <div className="score-card"><div className="bar-row-header"><strong>Growth</strong><span>{selectedVendor.scores.growth.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${selectedVendor.scores.growth}%` }} /></div></div>
             <div className="score-card"><div className="bar-row-header"><strong>Quality</strong><span>{selectedVendor.scores.quality.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${selectedVendor.scores.quality}%` }} /></div></div>
             <div className="score-card"><div className="bar-row-header"><strong>Efficiency</strong><span>{selectedVendor.scores.efficiency.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${selectedVendor.scores.efficiency}%` }} /></div></div>
@@ -191,12 +141,7 @@ export function CopilotView({ selectedVendor, onSelectVendor }: { selectedVendor
             <div className="score-card"><div className="bar-row-header"><strong>Benchmark</strong><span>{selectedVendor.scores.benchmark.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${selectedVendor.scores.benchmark}%` }} /></div></div>
           </div>
 
-          <div className="insight-banner">
-            <strong>Why this vendor matters</strong>
-            <p>{selectedVendor.copilot.performanceSummary}</p>
-          </div>
-
-          <div className="two-column two-column-tight upgraded-detail-columns">
+          <div className="two-column two-column-tight">
             <div className="panel inset-panel">
               <div className="section-heading compact-heading">
                 <div>
@@ -244,7 +189,7 @@ export function CopilotView({ selectedVendor, onSelectVendor }: { selectedVendor
           </div>
         </article>
 
-        <article className="panel copilot-panel upgraded-copilot-panel">
+        <article className="panel copilot-panel">
           <div className="section-heading">
             <div>
               <p className="eyebrow">AI Copilot</p>
@@ -253,7 +198,7 @@ export function CopilotView({ selectedVendor, onSelectVendor }: { selectedVendor
             <span className={`status-chip tone-${tone}`}>Live demo</span>
           </div>
 
-          <div className="copilot-highlight-grid upgraded-highlight-grid">
+          <div className="copilot-highlight-grid">
             <div className="copilot-highlight-card">
               <span className="copilot-highlight-label">Narrative</span>
               <p>{selectedVendor.summary}</p>
@@ -264,7 +209,12 @@ export function CopilotView({ selectedVendor, onSelectVendor }: { selectedVendor
             </div>
           </div>
 
-          <div className="copilot-block featured-copilot-block">
+          <div className="copilot-block">
+            <h3>Performance summary</h3>
+            <p>{selectedVendor.copilot.performanceSummary}</p>
+          </div>
+
+          <div className="copilot-block">
             <h3>Likely causes</h3>
             <ul className="action-list">
               {selectedVendor.copilot.likelyCauses.map((item) => (
@@ -273,7 +223,7 @@ export function CopilotView({ selectedVendor, onSelectVendor }: { selectedVendor
             </ul>
           </div>
 
-          <div className="copilot-block featured-copilot-block">
+          <div className="copilot-block">
             <h3>Top 3 AM actions</h3>
             <ol className="action-list ordered-list">
               {selectedVendor.copilot.actions.map((item) => (
