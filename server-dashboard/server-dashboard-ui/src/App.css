@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: Effra, Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
   font-synthesis: none;
@@ -8,20 +8,20 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --bg: #050816;
-  --bg-soft: #0b1220;
-  --panel: rgba(10, 18, 32, 0.82);
-  --panel-border: rgba(148, 163, 184, 0.16);
-  --panel-strong: rgba(15, 23, 42, 0.95);
-  --text: #e5eefb;
-  --muted: #94a3b8;
-  --accent: #60a5fa;
-  --accent-2: #22d3ee;
-  --good: #22c55e;
-  --warn: #f59e0b;
-  --critical: #ef4444;
-  --info: #38bdf8;
-  --shadow: 0 24px 70px rgba(2, 6, 23, 0.45);
+  --bg: #190916;
+  --bg-soft: #2a1023;
+  --panel: rgba(39, 12, 34, 0.82);
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --panel-strong: rgba(61, 18, 51, 0.96);
+  --text: #fff6f2;
+  --muted: #f1d1c3;
+  --accent: #eb652c;
+  --accent-2: #691d4e;
+  --good: #62d284;
+  --warn: #ffbf69;
+  --critical: #ff7b72;
+  --info: #ff9d6c;
+  --shadow: 0 28px 80px rgba(35, 6, 28, 0.45);
 }
 
 * {
@@ -34,9 +34,9 @@ body {
   min-height: 100vh;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 28%),
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 30%),
-    linear-gradient(180deg, #040712 0%, #07101d 100%);
+    radial-gradient(circle at top left, rgba(235, 101, 44, 0.26), transparent 26%),
+    radial-gradient(circle at top right, rgba(105, 29, 78, 0.34), transparent 34%),
+    linear-gradient(180deg, #160512 0%, #260a1d 52%, #12040f 100%);
 }
 
 button,
@@ -61,7 +61,7 @@ button {
 }
 
 .dashboard-shell {
-  width: min(1440px, calc(100% - 32px));
+  width: min(1480px, calc(100% - 32px));
   margin: 0 auto;
   padding: 32px 0 56px;
 }
@@ -80,8 +80,8 @@ button {
 }
 
 .toggle-button {
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(15, 23, 42, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(79, 24, 63, 0.58);
   color: var(--text);
   border-radius: 999px;
   padding: 10px 16px;
@@ -89,8 +89,8 @@ button {
 }
 
 .toggle-button-active {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #03111f;
+  background: linear-gradient(135deg, var(--accent), #ff8a57);
+  color: #fff6f2;
   border-color: transparent;
 }
 
@@ -104,14 +104,34 @@ button {
   margin-top: 18px;
 }
 
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 14px;
+}
+
+.brand-logo {
+  width: 160px;
+  max-width: 32vw;
+  height: auto;
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(235, 101, 44, 0.25);
+}
+
 .hero-panel {
   display: flex;
   justify-content: space-between;
   gap: 24px;
   padding: 32px;
   background:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(9, 14, 28, 0.88)),
-    linear-gradient(135deg, rgba(34, 211, 238, 0.08), rgba(96, 165, 250, 0.08));
+    radial-gradient(circle at top right, rgba(235, 101, 44, 0.18), transparent 28%),
+    linear-gradient(135deg, rgba(105, 29, 78, 0.95), rgba(46, 13, 39, 0.92));
+}
+
+.copilot-layout {
+  grid-template-columns: 1.2fr 0.95fr;
+  align-items: start;
 }
 
 .hero-copy {
@@ -125,7 +145,7 @@ button {
   flex-wrap: wrap;
   gap: 14px;
   margin-top: 14px;
-  color: #cbd5e1;
+  color: #ffe4d8;
   font-size: 0.92rem;
 }
 
@@ -185,7 +205,7 @@ button {
   text-transform: uppercase;
   letter-spacing: 0.18em;
   font-size: 0.74rem;
-  color: var(--accent-2);
+  color: #ffb08a;
 }
 
 h1,
@@ -238,11 +258,24 @@ h3 {
 }
 
 .vendor-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.vendor-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 40%);
+  pointer-events: none;
+}
+
+.vendor-card {
   text-align: left;
   padding: 18px;
   border-radius: 20px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(8, 15, 28, 0.94));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(79, 24, 63, 0.78), rgba(37, 11, 31, 0.96));
   color: var(--text);
   cursor: pointer;
   display: flex;
@@ -252,8 +285,8 @@ h3 {
 }
 
 .vendor-card-selected {
-  border-color: rgba(56, 189, 248, 0.65);
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.4), var(--shadow);
+  border-color: rgba(235, 101, 44, 0.8);
+  box-shadow: 0 0 0 1px rgba(235, 101, 44, 0.45), var(--shadow);
 }
 
 .vendor-card-header {
@@ -279,8 +312,8 @@ h3 {
 .subtle-tag {
   border-radius: 999px;
   padding: 6px 10px;
-  background: rgba(51, 65, 85, 0.55);
-  color: #dbe7f6;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffe8de;
   font-size: 0.82rem;
 }
 
@@ -302,8 +335,8 @@ h3 {
 .inset-panel,
 .copilot-block,
 .copilot-watchout {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 18px;
 }
 
@@ -319,6 +352,30 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  position: sticky;
+  top: 24px;
+}
+
+.copilot-highlight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.copilot-highlight-card {
+  padding: 16px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+  border: 1px solid rgba(255,255,255,0.09);
+}
+
+.copilot-highlight-label {
+  display: block;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+  color: #ffb08a;
 }
 
 .copilot-block {
@@ -351,8 +408,8 @@ h3 {
 .history-card {
   padding: 18px;
   border-radius: 20px;
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(8, 15, 28, 0.9));
-  border: 1px solid rgba(148, 163, 184, 0.1);
+  background: linear-gradient(180deg, rgba(82, 24, 65, 0.78), rgba(38, 10, 30, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.08);
   min-height: 138px;
   display: flex;
   flex-direction: column;
@@ -400,8 +457,8 @@ h3 {
   align-items: center;
   padding: 16px 18px;
   border-radius: 18px;
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .table-meta,
@@ -435,7 +492,7 @@ h3 {
 .bar-track {
   height: 10px;
   border-radius: 999px;
-  background: rgba(51, 65, 85, 0.75);
+  background: rgba(255, 255, 255, 0.1);
   overflow: hidden;
 }
 
@@ -446,15 +503,15 @@ h3 {
 .bar-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--accent-2), var(--accent));
-  box-shadow: 0 0 18px rgba(56, 189, 248, 0.38);
+  background: linear-gradient(90deg, #ff8a57, var(--accent));
+  box-shadow: 0 0 18px rgba(235, 101, 44, 0.34);
 }
 
 .disk-card {
   padding: 16px 18px;
   border-radius: 18px;
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .event-row {
@@ -470,7 +527,7 @@ h3 {
 }
 
 .event-time {
-  color: #cbd5e1;
+  color: #ffe1d4;
   font-weight: 600;
 }
 
@@ -490,8 +547,8 @@ h3 {
 .terminal-card {
   padding: 18px;
   border-radius: 20px;
-  background: rgba(2, 6, 23, 0.72);
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(28, 8, 22, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -500,12 +557,12 @@ h3 {
 .terminal-card pre {
   white-space: pre-wrap;
   word-break: break-word;
-  color: #cbd5e1;
+  color: #ffe6db;
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: 0.8rem;
   max-height: 180px;
   overflow: auto;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(255, 255, 255, 0.04);
   padding: 12px;
   border-radius: 14px;
 }
@@ -526,8 +583,8 @@ h3 {
 }
 
 .tone-info {
-  color: #dbeafe;
-  background: rgba(56, 189, 248, 0.16);
+  color: #fff1eb;
+  background: rgba(235, 101, 44, 0.16);
 }
 
 .metric-card.tone-good,
@@ -544,18 +601,26 @@ h3 {
   .three-column-layout,
   .score-grid,
   .vendor-grid,
-  .metric-grid-three {
+  .metric-grid-three,
+  .copilot-highlight-grid,
+  .copilot-layout {
     grid-template-columns: 1fr;
   }
 
   .hero-panel,
-  .view-switcher {
+  .view-switcher,
+  .brand-lockup {
     flex-direction: column;
+    align-items: flex-start;
   }
 
   .hero-actions {
     align-items: flex-start;
     min-width: unset;
+  }
+
+  .copilot-panel {
+    position: static;
   }
 }
 
