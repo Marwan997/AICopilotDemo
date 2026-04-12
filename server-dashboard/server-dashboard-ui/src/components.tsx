@@ -376,48 +376,46 @@ export function CopilotView({
                 <h2>Main chef {selectedChefId} across all branches</h2>
               </div>
             </div>
-            <div className="portfolio-metric-grid">
-              <article className="metric-card tone-info">
-                <span className="metric-label">Total branches</span>
-                <strong className="metric-value">{chefTotals.totalBranches}</strong>
-                <span className="metric-detail">{chefTotals.classCounts.Healthy ?? 0} healthy, {chefTotals.classCounts['At Risk'] ?? 0} at risk</span>
+            <div className="portfolio-kpi-grid">
+              <article className="portfolio-kpi-box">
+                <span className="portfolio-kpi-label">Branches</span>
+                <strong className="portfolio-kpi-value">{chefTotals.totalBranches}</strong>
+                <span className="portfolio-kpi-detail">{chefTotals.classCounts.Healthy ?? 0} healthy</span>
               </article>
-              <article className="metric-card tone-info">
-                <span className="metric-label">Delivered orders</span>
-                <strong className="metric-value">{chefTotals.ordersRecent}</strong>
-                <span className="metric-detail">{chefTotals.ordersTrendPct.toFixed(1)}% vs previous period</span>
+              <article className="portfolio-kpi-box">
+                <span className="portfolio-kpi-label">Orders</span>
+                <strong className="portfolio-kpi-value">{chefTotals.ordersRecent}</strong>
+                <span className="portfolio-kpi-detail">{chefTotals.ordersTrendPct.toFixed(1)}% trend</span>
               </article>
-              <article className="metric-card tone-info">
-                <span className="metric-label">Delivered GMV</span>
-                <strong className="metric-value">{formatMoney(chefTotals.gmvRecent)}</strong>
-                <span className="metric-detail">{chefTotals.gmvTrendPct.toFixed(1)}% vs previous period</span>
+              <article className="portfolio-kpi-box">
+                <span className="portfolio-kpi-label">GMV</span>
+                <strong className="portfolio-kpi-value">{formatMoney(chefTotals.gmvRecent)}</strong>
+                <span className="portfolio-kpi-detail">{chefTotals.gmvTrendPct.toFixed(1)}% trend</span>
               </article>
-              <article className="metric-card tone-info">
-                <span className="metric-label">Weighted AOV</span>
-                <strong className="metric-value">{formatMoney(chefTotals.weightedAov)}</strong>
-                <span className="metric-detail">Portfolio average order value across all branches</span>
+              <article className="portfolio-kpi-box">
+                <span className="portfolio-kpi-label">AOV</span>
+                <strong className="portfolio-kpi-value">{formatMoney(chefTotals.weightedAov)}</strong>
+                <span className="portfolio-kpi-detail">Weighted across branches</span>
               </article>
-            </div>
-            <div className="portfolio-metric-grid compact-portfolio-grid">
-              <article className="metric-card tone-info">
-                <span className="metric-label">Delivered rate</span>
-                <strong className="metric-value">{formatPercent(chefTotals.deliveredRate)}</strong>
-                <span className="metric-detail">Weighted portfolio quality signal</span>
+              <article className="portfolio-kpi-box">
+                <span className="portfolio-kpi-label">Delivered</span>
+                <strong className="portfolio-kpi-value">{formatPercent(chefTotals.deliveredRate)}</strong>
+                <span className="portfolio-kpi-detail">Portfolio quality</span>
               </article>
-              <article className="metric-card tone-critical">
-                <span className="metric-label">Cancel rate</span>
-                <strong className="metric-value">{formatPercent(chefTotals.cancelRate)}</strong>
-                <span className="metric-detail">Watch branch {chefTotals.topRiskBranch.vendorId}</span>
+              <article className="portfolio-kpi-box portfolio-kpi-risk">
+                <span className="portfolio-kpi-label">Cancel</span>
+                <strong className="portfolio-kpi-value">{formatPercent(chefTotals.cancelRate)}</strong>
+                <span className="portfolio-kpi-detail">Risk branch {chefTotals.topRiskBranch.vendorId}</span>
               </article>
-              <article className="metric-card tone-warn">
-                <span className="metric-label">Subsidy ratio</span>
-                <strong className="metric-value">{formatPercent(chefTotals.subsidyRatio, 2)}</strong>
-                <span className="metric-detail">Free delivery {formatPercent(chefTotals.freeDeliveryRate)}</span>
+              <article className="portfolio-kpi-box">
+                <span className="portfolio-kpi-label">Subsidy</span>
+                <strong className="portfolio-kpi-value">{formatPercent(chefTotals.subsidyRatio, 2)}</strong>
+                <span className="portfolio-kpi-detail">Free delivery {formatPercent(chefTotals.freeDeliveryRate)}</span>
               </article>
-              <article className="metric-card tone-good">
-                <span className="metric-label">Net take ratio</span>
-                <strong className="metric-value">{formatPercent(chefTotals.netTakeRatio, 2)}</strong>
-                <span className="metric-detail">Top opportunity branch {chefTotals.topOpportunityBranch.vendorId}</span>
+              <article className="portfolio-kpi-box">
+                <span className="portfolio-kpi-label">Net take</span>
+                <strong className="portfolio-kpi-value">{formatPercent(chefTotals.netTakeRatio, 2)}</strong>
+                <span className="portfolio-kpi-detail">Opportunity {chefTotals.topOpportunityBranch.vendorId}</span>
               </article>
             </div>
           </section>
@@ -474,33 +472,24 @@ export function CopilotView({
                     <h2>Main chef {selectedChefId} branch portfolio</h2>
                   </div>
                 </div>
-                <div className="vendor-grid branch-selector-grid">
+                <div className="branch-selector-list">
                   {chefBranches.map((vendor) => {
                     const vendorTone = classificationTone(vendor.classification)
                     const selected = selectedVendor?.vendorId === vendor.vendorId
                     return (
                       <button
                         key={vendor.vendorId}
-                        className={`vendor-card ${selected ? 'vendor-card-selected' : ''}`}
+                        className={`branch-selector-row ${selected ? 'branch-selector-row-selected' : ''}`}
                         onClick={() => onSelectVendor(selected ? null : vendor)}
                       >
-                        <div className="vendor-card-header">
-                          <div>
-                            <strong>Vendor {vendor.vendorId}</strong>
-                            <p>
-                              {vendor.city} • {vendor.cuisine}
-                            </p>
-                          </div>
+                        <div className="branch-selector-main">
+                          <strong>Vendor {vendor.vendorId}</strong>
+                          <span>{vendor.city} • {vendor.cuisine}</span>
+                        </div>
+                        <div className="branch-selector-metrics">
                           <span className={`status-chip tone-${vendorTone}`}>{vendor.classification}</span>
-                        </div>
-                        <div className="vendor-score-row">
-                          <span>Final score</span>
-                          <strong>{vendor.finalScore.toFixed(1)}</strong>
-                        </div>
-                        <p className="vendor-summary">{vendor.summary}</p>
-                        <div className="vendor-tags">
-                          <span className="subtle-tag">Branch {vendor.vendorId}</span>
-                          <span className="subtle-tag">Chef {vendor.mainChefId}</span>
+                          <span className="branch-score">Score {vendor.finalScore.toFixed(1)}</span>
+                          <span className="branch-score">Orders {vendor.kpis.deliveredOrdersRecent}</span>
                         </div>
                       </button>
                     )

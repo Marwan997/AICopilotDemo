@@ -291,6 +291,93 @@ h3 {
   margin-top: 18px;
 }
 
+.portfolio-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.portfolio-kpi-box {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 98px;
+}
+
+.portfolio-kpi-risk {
+  border-color: rgba(239, 68, 68, 0.28);
+}
+
+.portfolio-kpi-label {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.7rem;
+  color: #ffb08a;
+}
+
+.portfolio-kpi-value {
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+
+.portfolio-kpi-detail {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.branch-selector-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.branch-selector-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.branch-selector-row-selected {
+  border-color: rgba(235, 101, 44, 0.8);
+  box-shadow: 0 0 0 1px rgba(235, 101, 44, 0.35);
+}
+
+.branch-selector-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.branch-selector-main span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.branch-selector-metrics {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.branch-score {
+  color: #ffe8de;
+  font-size: 0.86rem;
+}
+
 .branch-detail-column,
 .branch-copilot-column {
   display: flex;
@@ -650,7 +737,8 @@ h3 {
   .metric-grid-three,
   .copilot-highlight-grid,
   .copilot-layout,
-  .branch-overview-grid {
+  .branch-overview-grid,
+  .portfolio-kpi-grid {
     grid-template-columns: 1fr;
   }
 
@@ -689,14 +777,17 @@ h3 {
   }
 
   .table-row,
-  .process-row {
+  .process-row,
+  .branch-selector-row {
     grid-template-columns: 1fr;
     align-items: flex-start;
   }
 
   .table-meta,
-  .process-metrics {
+  .process-metrics,
+  .branch-selector-metrics {
     align-items: flex-start;
+    justify-content: flex-start;
   }
 
   .event-row {
