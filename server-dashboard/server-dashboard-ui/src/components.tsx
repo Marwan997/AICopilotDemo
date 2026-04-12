@@ -206,7 +206,113 @@ export function CopilotView({
   }, {})
 
   const showChefResults = Boolean(selectedChefId !== null && chefBranches.length > 0)
-  const branchCards = selectedVendor ? [selectedVendor] : chefBranches
+
+  const chefTotals = useMemo(() => {
+    if (!chefBranches.length) return null
+
+    const totals = chefBranches.reduce(
+      (acc, branch) => {
+        acc.ordersRecent += branch.kpis.deliveredOrdersRecent
+        acc.ordersPrev += branch.kpis.deliveredOrdersPrev
+        acc.gmvRecent += branch.kpis.deliveredGmvRecent
+        acc.gmvPrev += branch.kpis.deliveredGmvPrev
+        acc.deliveredRateWeighted += branch.kpis.deliveredRateRecent * branch.kpis.deliveredOrdersRecent
+        acc.cancelRateWeighted += branch.kpis.cancelRateRecent * branch.kpis.deliveredOrdersRecent
+        acc.declineRateWeighted += branch.kpis.declineRateRecent * branch.kpis.deliveredOrdersRecent
+        acc.freeDeliveryRateWeighted += branch.kpis.freeDeliveryRateRecent * branch.kpis.deliveredOrdersRecent
+        acc.subsidyRatioWeighted += branch.kpis.subsidyRatioRecent * branch.kpis.deliveredGmvRecent
+        acc.netTakeRatioWeighted += branch.kpis.netTakeRatioRecent * branch.kpis.deliveredGmvRecent
+        acc.classCounts[branch.classification] = (acc.classCounts[branch.classification] ?? 0) + 1
+        return acc
+      },
+      {
+        ordersRecent: 0,
+        ordersPrev: 0,
+        gmvRecent: 0,
+        gmvPrev: 0,
+        deliveredRateWeighted: 0,
+        cancelRateWeighted: 0,
+        declineRateWeighted: 0,
+        freeDeliveryRateWeighted: 0,
+        subsidyRatioWeighted: 0,
+        netTakeRatioWeighted: 0,
+        classCounts: {} as Record<string, number>,
+      },
+    )
+
+    const weightedAov = totals.ordersRecent > 0 ? totals.gmvRecent / totals.ordersRecent : 0
+    const ordersTrendPct = totals.ordersPrev > 0 ? ((totals.ordersRecent - totals.ordersPrev) / totals.ordersPrev) * 100 : 0
+    const gmvTrendPct = totals.gmvPrev > 0 ? ((totals.gmvRecent - totals.gmvPrev) / totals.gmvPrev) * 100 : 0
+    const deliveredRate = totals.ordersRecent > 0 ? totals.deliveredRateWeighted / totals.ordersRecent : 0
+    const cancelRate = totals.ordersRecent > 0 ? totals.cancelRateWeighted / totals.ordersRecent : 0
+    const declineRate = totals.ordersRecent > 0 ? totals.declineRateWeighted / totals.ordersRecent : 0
+    const freeDeliveryRate = totals.ordersRecent > 0 ? totals.freeDeliveryRateWeighted / totals.ordersRecent : 0
+    const subsidyRatio = totals.gmvRecent > 0 ? totals.subsidyRatioWeighted / totals.gmvRecent : 0
+    const netTakeRatio = totals.gmvRecent > 0 ? totals.netTakeRatioWeighted / totals.gmvRecent : 0
+    const topRiskBranch = [...chefBranches].sort((a, b) => b.kpis.cancelRateRecent - a.kpis.cancelRateRecent)[0]
+    const topOpportunityBranch = [...chefBranches].sort((a, b) => b.scores.growth - a.scores.growth)[0]
+
+    return {
+      totalBranches: chefBranches.length,
+      ordersRecent: totals.ordersRecent,
+      ordersTrendPct,
+      gmvRecent: totals.gmvRecent,
+      gmvTrendPct,
+      weightedAov,
+      deliveredRate,
+      cancelRate,
+      declineRate,
+      freeDeliveryRate,
+      subsidyRatio,
+      netTakeRatio,
+      classCounts: totals.classCounts,
+      topRiskBranch,
+      topOpportunityBranch,
+    }
+  }, [chefBranches])
+
+  const chefCopilot = useMemo(() => {
+    if (!chefTotals || !selectedChefId) return null
+
+    const portfolioStatus = chefTotals.classCounts['At Risk']
+      ? 'portfolio attention is required because at least one branch is operationally at risk.'
+      : chefTotals.classCounts['Needs Attention']
+        ? 'the portfolio is stable overall but has efficiency or quality issues that need cleanup.'
+        : 'the portfolio is broadly healthy with room to scale selectively.'
+
+    const likelyCauses = [
+      chefTotals.cancelRate >= 0.08
+        ? 'Some branches are showing elevated cancellation pressure, which is dragging portfolio quality.'
+        : 'Operational quality is broadly stable across the portfolio.',
+      chefTotals.subsidyRatio >= 0.02
+        ? 'Commercial support looks heavier than ideal, suggesting margin pressure in parts of the portfolio.'
+        : 'Commercial efficiency is mostly controlled and not overly subsidy-led.',
+      chefTotals.ordersTrendPct >= 15
+        ? 'Demand momentum is present, so the key question is where to scale versus where to stabilize.'
+        : 'Growth is modest, so branch prioritization matters more than broad scaling.',
+    ]
+
+    const actions = [
+      `Prioritize branch ${chefTotals.topRiskBranch.vendorId} for operational review because it carries the highest cancellation risk.`,
+      `Use branch ${chefTotals.topOpportunityBranch.vendorId} as the first growth bet because it shows the strongest upside signal.`,
+      chefTotals.subsidyRatio >= 0.02
+        ? 'Tighten broad support and move to more selective branch-level commercial actions.'
+        : 'Protect current efficiency while scaling only the branches with proven operating quality.',
+    ]
+
+    const talkingPoints = [
+      `Main chef ${selectedChefId} has ${chefTotals.totalBranches} branches, and the portfolio view suggests ${portfolioStatus}`,
+      `The strongest opportunity branch right now is ${chefTotals.topOpportunityBranch.vendorId}, while the highest operational risk is branch ${chefTotals.topRiskBranch.vendorId}.`,
+      'The AM focus should be branch prioritization, not treating every branch under the brand the same way.',
+    ]
+
+    return {
+      summary: `Across ${chefTotals.totalBranches} branches, the portfolio is generating ${chefTotals.ordersRecent} delivered orders and ${formatMoney(chefTotals.gmvRecent)} in recent GMV. Overall, ${portfolioStatus}`,
+      likelyCauses,
+      actions,
+      talkingPoints,
+    }
+  }, [chefTotals, selectedChefId])
 
   return (
     <>
@@ -261,61 +367,159 @@ export function CopilotView({
         {!chefSearch ? <p className="search-hint">Start with a main_chef_id to load the branch portfolio.</p> : null}
       </section>
 
-      {showChefResults ? (
+      {showChefResults && chefTotals && chefCopilot ? (
         <>
           <section className="panel">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">Branch selector</p>
-                <h2>Main chef {selectedChefId} branch portfolio</h2>
+                <p className="eyebrow">Portfolio summary</p>
+                <h2>Main chef {selectedChefId} across all branches</h2>
               </div>
             </div>
-            <div className="vendor-grid">
-              {chefBranches.map((vendor) => {
-                const vendorTone = classificationTone(vendor.classification)
-                const selected = selectedVendor?.vendorId === vendor.vendorId
-                return (
-                  <button
-                    key={vendor.vendorId}
-                    className={`vendor-card ${selected ? 'vendor-card-selected' : ''}`}
-                    onClick={() => onSelectVendor(selected ? null : vendor)}
-                  >
-                    <div className="vendor-card-header">
-                      <div>
-                        <strong>Vendor {vendor.vendorId}</strong>
-                        <p>
-                          {vendor.city} • {vendor.cuisine}
-                        </p>
-                      </div>
-                      <span className={`status-chip tone-${vendorTone}`}>{vendor.classification}</span>
-                    </div>
-                    <div className="vendor-score-row">
-                      <span>Final score</span>
-                      <strong>{vendor.finalScore.toFixed(1)}</strong>
-                    </div>
-                    <p className="vendor-summary">{vendor.summary}</p>
-                    <div className="vendor-tags">
-                      <span className="subtle-tag">Branch {vendor.vendorId}</span>
-                      <span className="subtle-tag">Chef {vendor.mainChefId}</span>
-                    </div>
-                  </button>
-                )
-              })}
+            <div className="portfolio-metric-grid">
+              <article className="metric-card tone-info">
+                <span className="metric-label">Total branches</span>
+                <strong className="metric-value">{chefTotals.totalBranches}</strong>
+                <span className="metric-detail">{chefTotals.classCounts.Healthy ?? 0} healthy, {chefTotals.classCounts['At Risk'] ?? 0} at risk</span>
+              </article>
+              <article className="metric-card tone-info">
+                <span className="metric-label">Delivered orders</span>
+                <strong className="metric-value">{chefTotals.ordersRecent}</strong>
+                <span className="metric-detail">{chefTotals.ordersTrendPct.toFixed(1)}% vs previous period</span>
+              </article>
+              <article className="metric-card tone-info">
+                <span className="metric-label">Delivered GMV</span>
+                <strong className="metric-value">{formatMoney(chefTotals.gmvRecent)}</strong>
+                <span className="metric-detail">{chefTotals.gmvTrendPct.toFixed(1)}% vs previous period</span>
+              </article>
+              <article className="metric-card tone-info">
+                <span className="metric-label">Weighted AOV</span>
+                <strong className="metric-value">{formatMoney(chefTotals.weightedAov)}</strong>
+                <span className="metric-detail">Portfolio average order value across all branches</span>
+              </article>
+            </div>
+            <div className="portfolio-metric-grid compact-portfolio-grid">
+              <article className="metric-card tone-info">
+                <span className="metric-label">Delivered rate</span>
+                <strong className="metric-value">{formatPercent(chefTotals.deliveredRate)}</strong>
+                <span className="metric-detail">Weighted portfolio quality signal</span>
+              </article>
+              <article className="metric-card tone-critical">
+                <span className="metric-label">Cancel rate</span>
+                <strong className="metric-value">{formatPercent(chefTotals.cancelRate)}</strong>
+                <span className="metric-detail">Watch branch {chefTotals.topRiskBranch.vendorId}</span>
+              </article>
+              <article className="metric-card tone-warn">
+                <span className="metric-label">Subsidy ratio</span>
+                <strong className="metric-value">{formatPercent(chefTotals.subsidyRatio, 2)}</strong>
+                <span className="metric-detail">Free delivery {formatPercent(chefTotals.freeDeliveryRate)}</span>
+              </article>
+              <article className="metric-card tone-good">
+                <span className="metric-label">Net take ratio</span>
+                <strong className="metric-value">{formatPercent(chefTotals.netTakeRatio, 2)}</strong>
+                <span className="metric-detail">Top opportunity branch {chefTotals.topOpportunityBranch.vendorId}</span>
+              </article>
             </div>
           </section>
 
           <section className="branch-overview-grid">
             <div className="branch-detail-column">
-              {branchCards.map((vendor) => (
-                <VendorDetailCard key={`detail-${vendor.vendorId}`} vendor={vendor} />
-              ))}
+              <article className="panel branch-copilot-card">
+                <div className="section-heading">
+                  <div>
+                    <p className="eyebrow">Portfolio AI Copilot</p>
+                    <h2>Main chef {selectedChefId} AM recommendations</h2>
+                  </div>
+                  <span className="status-chip tone-info">All branches</span>
+                </div>
+
+                <div className="copilot-block">
+                  <h3>Portfolio summary</h3>
+                  <p>{chefCopilot.summary}</p>
+                </div>
+
+                <div className="copilot-block">
+                  <h3>Likely causes</h3>
+                  <ul className="action-list">
+                    {chefCopilot.likelyCauses.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="copilot-block">
+                  <h3>Top AM actions</h3>
+                  <ol className="action-list ordered-list">
+                    {chefCopilot.actions.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className="copilot-block">
+                  <h3>Talking points</h3>
+                  <ul className="action-list">
+                    {chefCopilot.talkingPoints.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </article>
             </div>
             <div className="branch-copilot-column">
-              {branchCards.map((vendor) => (
-                <CopilotCard key={`copilot-${vendor.vendorId}`} vendor={vendor} />
-              ))}
+              <article className="panel">
+                <div className="section-heading">
+                  <div>
+                    <p className="eyebrow">Branch selector</p>
+                    <h2>Main chef {selectedChefId} branch portfolio</h2>
+                  </div>
+                </div>
+                <div className="vendor-grid branch-selector-grid">
+                  {chefBranches.map((vendor) => {
+                    const vendorTone = classificationTone(vendor.classification)
+                    const selected = selectedVendor?.vendorId === vendor.vendorId
+                    return (
+                      <button
+                        key={vendor.vendorId}
+                        className={`vendor-card ${selected ? 'vendor-card-selected' : ''}`}
+                        onClick={() => onSelectVendor(selected ? null : vendor)}
+                      >
+                        <div className="vendor-card-header">
+                          <div>
+                            <strong>Vendor {vendor.vendorId}</strong>
+                            <p>
+                              {vendor.city} • {vendor.cuisine}
+                            </p>
+                          </div>
+                          <span className={`status-chip tone-${vendorTone}`}>{vendor.classification}</span>
+                        </div>
+                        <div className="vendor-score-row">
+                          <span>Final score</span>
+                          <strong>{vendor.finalScore.toFixed(1)}</strong>
+                        </div>
+                        <p className="vendor-summary">{vendor.summary}</p>
+                        <div className="vendor-tags">
+                          <span className="subtle-tag">Branch {vendor.vendorId}</span>
+                          <span className="subtle-tag">Chef {vendor.mainChefId}</span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </article>
             </div>
           </section>
+
+          {selectedVendor ? (
+            <section className="branch-overview-grid">
+              <div className="branch-detail-column">
+                <VendorDetailCard vendor={selectedVendor} />
+              </div>
+              <div className="branch-copilot-column">
+                <CopilotCard vendor={selectedVendor} />
+              </div>
+            </section>
+          ) : null}
         </>
       ) : null}
     </>
