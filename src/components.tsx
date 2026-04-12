@@ -482,95 +482,111 @@ export function CopilotView({
             </div>
           </section>
 
-          <section className="branch-overview-grid">
-            <div className="branch-detail-column">
-              <article className="panel branch-copilot-card">
-                <div className="section-heading">
-                  <div>
-                    <p className="eyebrow">Portfolio AI Copilot</p>
-                    <h2>Main chef {selectedChefId} AM recommendations</h2>
-                  </div>
-                  <span className="status-chip tone-info">All branches</span>
-                </div>
-
-                <div className="copilot-block">
-                  <h3>Portfolio summary</h3>
-                  <p>{chefCopilot.summary}</p>
-                </div>
-
-                <div className="copilot-block">
-                  <h3>Likely causes</h3>
-                  <ul className="action-list">
-                    {chefCopilot.likelyCauses.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="copilot-block">
-                  <h3>Top AM actions</h3>
-                  <ol className="action-list ordered-list">
-                    {chefCopilot.actions.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ol>
-                </div>
-
-                <div className="copilot-block">
-                  <h3>Talking points</h3>
-                  <ul className="action-list">
-                    {chefCopilot.talkingPoints.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-              </article>
+          <article className="panel branch-copilot-card">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Portfolio AI Copilot</p>
+                <h2>Main chef {selectedChefId} AM recommendations</h2>
+              </div>
+              <span className="status-chip tone-info">All branches</span>
             </div>
-            <div className="branch-copilot-column">
-              <article className="panel">
-                <div className="section-heading">
-                  <div>
-                    <p className="eyebrow">Branch selector</p>
-                    <h2>Main chef {selectedChefId} branch portfolio</h2>
-                  </div>
-                </div>
-                <div className="branch-selector-list">
-                  {chefBranches.map((vendor) => {
-                    const vendorTone = classificationTone(vendor.classification)
-                    const selected = selectedVendor?.vendorId === vendor.vendorId
-                    return (
-                      <button
-                        key={vendor.vendorId}
-                        className={`branch-selector-row ${selected ? 'branch-selector-row-selected' : ''}`}
-                        onClick={() => onSelectVendor(selected ? null : vendor)}
-                      >
-                        <div className="branch-selector-main">
-                          <strong>Vendor {vendor.vendorId}</strong>
-                          <span>{vendor.city} • {vendor.cuisine}</span>
-                        </div>
-                        <div className="branch-selector-metrics">
-                          <span className={`status-chip tone-${vendorTone}`}>{vendor.classification}</span>
-                          <span className="branch-score">Score {vendor.finalScore.toFixed(1)}</span>
-                          <span className="branch-score">Orders {vendor.kpis.deliveredOrdersRecent}</span>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </article>
+
+            <div className="copilot-block">
+              <h3>Portfolio summary</h3>
+              <p>{chefCopilot.summary}</p>
+            </div>
+
+            <div className="copilot-block">
+              <h3>Likely causes</h3>
+              <ul className="action-list">
+                {chefCopilot.likelyCauses.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="copilot-block">
+              <h3>Top AM actions</h3>
+              <ol className="action-list ordered-list">
+                {chefCopilot.actions.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ol>
+            </div>
+
+            <div className="copilot-block">
+              <h3>Talking points</h3>
+              <ul className="action-list">
+                {chefCopilot.talkingPoints.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          </article>
+
+          <section className="panel branch-selector-panel">
+            <div className="section-heading branch-selector-heading">
+              <div>
+                <p className="eyebrow">Branch selector</p>
+                <h2>Main chef {selectedChefId} branch portfolio</h2>
+              </div>
+              <span className="branch-selector-summary">
+                {selectedVendor ? `Branch ${selectedVendor.vendorId} selected` : 'Select a branch to reveal branch details'}
+              </span>
+            </div>
+            <div className="branch-selector-list compact-branch-selector-list">
+              {chefBranches.map((vendor) => {
+                const vendorTone = classificationTone(vendor.classification)
+                const selected = selectedVendor?.vendorId === vendor.vendorId
+                return (
+                  <button
+                    key={vendor.vendorId}
+                    className={`branch-selector-row compact-branch-selector-row ${selected ? 'branch-selector-row-selected' : ''}`}
+                    onClick={() => onSelectVendor(selected ? null : vendor)}
+                  >
+                    <div className="branch-selector-main compact-branch-selector-main">
+                      <strong>Vendor {vendor.vendorId}</strong>
+                      <span>{vendor.city} • {vendor.cuisine}</span>
+                    </div>
+                    <div className="branch-selector-metrics compact-branch-selector-metrics">
+                      <span className={`status-chip tone-${vendorTone}`}>{vendor.classification}</span>
+                      <span className="branch-score">Score {vendor.finalScore.toFixed(1)}</span>
+                      <span className="branch-score">Orders {vendor.kpis.deliveredOrdersRecent}</span>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </section>
 
           {selectedVendor ? (
-            <section className="branch-overview-grid">
-              <div className="branch-detail-column">
-                <VendorDetailCard vendor={selectedVendor} />
-              </div>
-              <div className="branch-copilot-column">
-                <CopilotCard vendor={selectedVendor} />
-              </div>
+            <>
+              <section className="panel branch-selected-banner">
+                <div>
+                  <p className="eyebrow">Selected branch</p>
+                  <h2>
+                    Vendor {selectedVendor.vendorId} • {selectedVendor.city}
+                  </h2>
+                </div>
+                <span className={`status-chip tone-${classificationTone(selectedVendor.classification)}`}>
+                  {selectedVendor.classification}
+                </span>
+              </section>
+
+              <section className="branch-overview-grid">
+                <div className="branch-detail-column">
+                  <VendorDetailCard vendor={selectedVendor} />
+                </div>
+                <div className="branch-copilot-column">
+                  <CopilotCard vendor={selectedVendor} />
+                </div>
+              </section>
+            </>
+          ) : (
+            <section className="panel branch-selection-placeholder">
+              <p>Select a branch above to open branch-level AI analysis and detailed KPIs.</p>
             </section>
-          ) : null}
+          )}
         </>
       ) : null}
     </>
