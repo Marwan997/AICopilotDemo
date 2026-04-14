@@ -382,7 +382,7 @@ export function CopilotView({
         <div>
           <div>
             <p className="eyebrow"> Rafeeq AI • Account Manager Copilot</p>
-            <h1>TheChefz Action Center</h1>
+            <h1>TheChefz AI Center</h1>
           </div>
           <p className="hero-copy">
             Search by brand_id first, review all branches for that chef, then drill into a specific branch.
