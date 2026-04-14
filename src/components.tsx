@@ -381,11 +381,11 @@ export function CopilotView({
       <header className="hero-panel panel hero-panel-copilot">
         <div>
           <div>
-            <p className="eyebrow">Mario • Account Manager Copilot</p>
-            <h1>Vendor action center</h1>
+            <p className="eyebrow"> Rafeeq AI • Account Manager Copilot</p>
+            <h1>TheChefz Action Center</h1>
           </div>
           <p className="hero-copy">
-            Search by main_chef_id first, review all branches for that chef, then drill into a specific branch only when needed.
+            Search by brand_id first, review all branches for that chef, then drill into a specific branch.
           </p>
           <div className="hero-meta">
             <span>Search by main_chef_id</span>
@@ -404,7 +404,7 @@ export function CopilotView({
         <div className="section-heading">
           <div>
             <p className="eyebrow">Chef search</p>
-            <h2>Find branches by main_chef_id</h2>
+            <h2>Search for a brand</h2>
           </div>
         </div>
         <div className="search-panel">
