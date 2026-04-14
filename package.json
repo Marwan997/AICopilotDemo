@@ -6,12 +6,21 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "tsc -b && vite build",
-    "serve": "vite preview --host 127.0.0.1 --port 5173 --strictPort",
-    "deploy": "npm run build",
+    "build:pages": "tsc -b && vite build --mode pages",
+    "build:monitoring": "tsc -b && vite build --mode monitoring",
+    "serve": "npm run build && node server/static-server.js",
+    "serve:8080": "npm run build && node server/static-server.js",
+    "serve:preview": "vite preview --host 127.0.0.1 --port 5173 --strictPort",
+    "serve:api": "node --experimental-strip-types server/index.ts",
+    "serve:monitoring": "npm run build:monitoring && node server/static-server.js",
+    "dev:monitoring": "vite --host 127.0.0.1 --port 8081 --strictPort --open /monitoring.html",
+    "deploy": "npm run build:pages",
     "lint": "eslint .",
     "preview": "vite preview --host 127.0.0.1 --port 5173 --strictPort"
   },
   "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },

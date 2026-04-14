@@ -1,70 +1,9 @@
 import { useMemo } from 'react'
-import chefzLogo from './chefz-logo.svg'
-import { classificationTone, vendorCases, type VendorCase } from './demoData'
-type DashboardPayload = {
-  meta?: {
-    lastFastCollectionAt?: string | null
-    lastSlowCollectionAt?: string | null
-  }
-  timestamp: string
-  host?: {
-    WindowsProductName?: string
-    WindowsVersion?: string
-  }
-  os?: {
-    freePhysicalMemoryGB?: number
-    totalVisibleMemoryGB?: number
-    lastBootUpTime?: string
-  }
-  counters?: {
-    cpuPercent?: number
-    network?: { path: string; value: number }[] | { path: string; value: number }
-  }
-  processes?: { ProcessName?: string; Id?: number; CPU?: number; WSMB?: number }[]
-  firewall?: { Name?: string; Enabled?: boolean | number }[]
-  defender?: {
-    AntivirusEnabled?: boolean
-    RealTimeProtectionEnabled?: boolean
-    AntivirusSignatureLastUpdated?: string
-  }
-  adapters?: {
-    Name?: string
-    ReceivedBytes?: number
-    SentBytes?: number
-    ReceivedUnicastPackets?: number
-    SentUnicastPackets?: number
-  }[]
-  connections?: { Name?: string; Count?: number }[]
-  disks?: { Name?: string; UsedGB?: number; FreeGB?: number; UsedPercent?: number }[]
-  events?: {
-    TimeCreated?: string
-    LevelDisplayName?: string
-    ProviderName?: string
-    Message?: string
-  }[]
-  internet?: {
-    latencyMs?: number | null
-    jitterMs?: number | null
-  }
-  openclaw?: {
-    status?: string
-    updateStatus?: string
-    audit?: string
-  }
-  derived?: {
-    internetTone?: 'good' | 'warn' | 'critical' | 'info'
-    memoryUsedPercent?: number
-  }
-  history?: {
-    timestamp: string
-    cpuPercent: number
-    memoryUsedPercent: number
-    diskUsedPercent: number
-    latencyMs: number | null
-  }[]
-}
-
-import { asArray, formatBytes, formatDate, formatMoney, formatPercent } from './utils'
+import { classificationTone, type VendorCase } from './demoData'
+import { curatedVendorCases } from './curatedVendorData'
+import { getBrandName } from './brandDirectory'
+import type { DashboardPayload } from './types'
+import { asArray, formatDate, formatMoney, formatPercent } from './utils'
 
 export function MiniChart({ values, color = 'var(--accent)' }: { values: number[]; color?: string }) {
   const points = useMemo(() => {
@@ -88,14 +27,15 @@ export function MiniChart({ values, color = 'var(--accent)' }: { values: number[
 
 function VendorDetailCard({ vendor }: { vendor: VendorCase }) {
   const tone = classificationTone(vendor.classification)
+  const branchLabel = `${getBrandName(vendor.mainChefId)} branch ${vendor.vendorId}`
 
   return (
     <article className="panel vendor-detail-card">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Vendor detail</p>
+          <p className="eyebrow">Branch detail</p>
           <h2>
-            Vendor {vendor.vendorId} • {vendor.city}
+            {branchLabel} • {vendor.city}
           </h2>
         </div>
         <span className={`status-chip tone-${tone}`}>{vendor.classification}</span>
@@ -183,6 +123,7 @@ function VendorDetailCard({ vendor }: { vendor: VendorCase }) {
 
 function CopilotCard({ vendor }: { vendor: VendorCase }) {
   const tone = classificationTone(vendor.classification)
+  const branchLabel = `${getBrandName(vendor.mainChefId)} branch ${vendor.vendorId}`
 
   return (
     <article className="panel copilot-panel branch-copilot-card">
@@ -190,7 +131,7 @@ function CopilotCard({ vendor }: { vendor: VendorCase }) {
         <div>
           <p className="eyebrow">AI Copilot</p>
           <h2>
-            Vendor {vendor.vendorId} • {vendor.city}
+            {branchLabel} • {vendor.city}
           </h2>
         </div>
         <span className={`status-chip tone-${tone}`}>{vendor.classification}</span>
@@ -262,7 +203,58 @@ export function CopilotView({
   selectedVendor: VendorCase | null
   onSelectVendor: (vendor: VendorCase | null) => void
 }) {
-  const classCounts = vendorCases.reduce<Record<string, number>>((acc, vendor) => {
+  const chefPortfolios = useMemo(() => {
+    const portfolioMap = new Map<number, {
+      mainChefId: number
+      cuisine: string
+      primaryCity: string
+      branches: VendorCase[]
+      branchCount: number
+      ordersRecent: number
+      ordersPrev: number
+      gmvRecent: number
+      gmvPrev: number
+      weightedAov: number
+      avgFinalScore: number
+    }>()
+
+    for (const vendor of curatedVendorCases) {
+      const existing = portfolioMap.get(vendor.mainChefId)
+      if (existing) {
+        existing.branches.push(vendor)
+        existing.branchCount += 1
+        existing.ordersRecent += vendor.kpis.deliveredOrdersRecent
+        existing.ordersPrev += vendor.kpis.deliveredOrdersPrev
+        existing.gmvRecent += vendor.kpis.deliveredGmvRecent
+        existing.gmvPrev += vendor.kpis.deliveredGmvPrev
+        existing.avgFinalScore += vendor.finalScore
+      } else {
+        portfolioMap.set(vendor.mainChefId, {
+          mainChefId: vendor.mainChefId,
+          cuisine: vendor.cuisine,
+          primaryCity: vendor.city,
+          branches: [vendor],
+          branchCount: 1,
+          ordersRecent: vendor.kpis.deliveredOrdersRecent,
+          ordersPrev: vendor.kpis.deliveredOrdersPrev,
+          gmvRecent: vendor.kpis.deliveredGmvRecent,
+          gmvPrev: vendor.kpis.deliveredGmvPrev,
+          weightedAov: 0,
+          avgFinalScore: vendor.finalScore,
+        })
+      }
+    }
+
+    return [...portfolioMap.values()]
+      .map((portfolio) => ({
+        ...portfolio,
+        weightedAov: portfolio.ordersRecent > 0 ? portfolio.gmvRecent / portfolio.ordersRecent : 0,
+        avgFinalScore: portfolio.avgFinalScore / portfolio.branchCount,
+      }))
+      .sort((a, b) => a.mainChefId - b.mainChefId)
+  }, [])
+
+  const classCounts = curatedVendorCases.reduce<Record<string, number>>((acc, vendor) => {
     acc[vendor.classification] = (acc[vendor.classification] ?? 0) + 1
     return acc
   }, {})
@@ -336,40 +328,48 @@ export function CopilotView({
   const chefCopilot = useMemo(() => {
     if (!chefTotals || !selectedChefId) return null
 
-    const portfolioStatus = chefTotals.classCounts['At Risk']
-      ? 'portfolio attention is required because at least one branch is operationally at risk.'
-      : chefTotals.classCounts['Needs Attention']
-        ? 'the portfolio is stable overall but has efficiency or quality issues that need cleanup.'
-        : 'the portfolio is broadly healthy with room to scale selectively.'
+    const brandName = getBrandName(selectedChefId)
+    const healthyCount = chefTotals.classCounts.Healthy ?? 0
+    const highPotentialCount = chefTotals.classCounts['High Potential'] ?? 0
+    const needsAttentionCount = chefTotals.classCounts['Needs Attention'] ?? 0
+    const atRiskCount = chefTotals.classCounts['At Risk'] ?? 0
 
-    const likelyCauses = [
-      chefTotals.cancelRate >= 0.08
-        ? 'Some branches are showing elevated cancellation pressure, which is dragging portfolio quality.'
-        : 'Operational quality is broadly stable across the portfolio.',
-      chefTotals.subsidyRatio >= 0.02
-        ? 'Commercial support looks heavier than ideal, suggesting margin pressure in parts of the portfolio.'
-        : 'Commercial efficiency is mostly controlled and not overly subsidy-led.',
-      chefTotals.ordersTrendPct >= 15
-        ? 'Demand momentum is present, so the key question is where to scale versus where to stabilize.'
-        : 'Growth is modest, so branch prioritization matters more than broad scaling.',
-    ]
+    const freeDeliveryStory = chefTotals.freeDeliveryRate >= 0.16
+      ? 'Free-delivery adoption is already meaningful in this portfolio, so the AM opportunity is to sharpen where it is used rather than push it everywhere.'
+      : 'Free-delivery adoption still has room to expand, which creates a clear AM lever for portfolios that need stronger conversion or acquisition.'
+
+    const marketingStory = chefTotals.ordersTrendPct >= 12 && chefTotals.subsidyRatio < 0.02
+      ? 'The portfolio has enough demand momentum to justify more in-app marketing conversations, especially for branches that can scale without heavy support.'
+      : 'In-app marketing should be pitched selectively, focusing on branches where visibility can unlock demand rather than mask weak fundamentals.'
+
+    const exclusivityStory = chefTotals.weightedAov >= 95 && chefTotals.deliveredRate >= 0.91
+      ? 'This portfolio has enough basket quality and service consistency to make exclusive offers a credible commercial pitch.'
+      : 'Exclusive offers should be used selectively, only where the branch proposition is strong enough to justify platform-first value.'
+
+    const summaryLead = highPotentialCount > 0
+      ? `${brandName} is a commercially expandable portfolio with ${highPotentialCount} high-potential branch${highPotentialCount > 1 ? 'es' : ''} that can be pushed through targeted AM levers.`
+      : healthyCount > 0
+        ? `${brandName} is a stable portfolio where AM upside will come from sharper monetization and visibility plays, not blanket outreach.`
+        : `${brandName} needs a more selective commercial approach, with AM effort concentrated on the branches most likely to convert growth levers into value.`
+
+    const likelyCauses = [freeDeliveryStory, marketingStory, exclusivityStory]
 
     const actions = [
-      `Prioritize branch ${chefTotals.topRiskBranch.vendorId} for operational review because it carries the highest cancellation risk.`,
-      `Use branch ${chefTotals.topOpportunityBranch.vendorId} as the first growth bet because it shows the strongest upside signal.`,
-      chefTotals.subsidyRatio >= 0.02
-        ? 'Tighten broad support and move to more selective branch-level commercial actions.'
-        : 'Protect current efficiency while scaling only the branches with proven operating quality.',
+      `Use branch ${chefTotals.topOpportunityBranch.vendorId} as the lead growth conversation for in-app marketing or exclusive placement, because it shows the strongest upside profile in the portfolio.`,
+      chefTotals.freeDeliveryRate < 0.14
+        ? 'Open a free-delivery activation conversation with the branches that still have room to use delivery support as a conversion lever.'
+        : 'Refine free-delivery participation instead of broadening it, so the portfolio keeps conversion support where it works best.',
+      'Segment the portfolio by commercial lever, so AMs know which branches to pitch on free delivery, which on exclusivity, and which on paid in-app marketing.',
     ]
 
     const talkingPoints = [
-      `Main chef ${selectedChefId} has ${chefTotals.totalBranches} branches, and the portfolio view suggests ${portfolioStatus}`,
-      `The strongest opportunity branch right now is ${chefTotals.topOpportunityBranch.vendorId}, while the highest operational risk is branch ${chefTotals.topRiskBranch.vendorId}.`,
-      'The AM focus should be branch prioritization, not treating every branch under the brand the same way.',
+      `${brandName} has ${healthyCount} healthy, ${highPotentialCount} high-potential, ${needsAttentionCount} needs-attention, and ${atRiskCount} at-risk branches that still require different commercial pitches inside the same portfolio.`,
+      `Branch ${chefTotals.topOpportunityBranch.vendorId} is the clearest candidate for a growth conversation, while branch ${chefTotals.topRiskBranch.vendorId} should not receive the same commercial push until its position is better understood.`,
+      'The AM objective is to match each branch with the right commercial lever, not push the same package across the full brand portfolio.',
     ]
 
     return {
-      summary: `Across ${chefTotals.totalBranches} branches, the portfolio is generating ${chefTotals.ordersRecent} delivered orders and ${formatMoney(chefTotals.gmvRecent)} in recent GMV. Overall, ${portfolioStatus}`,
+      summary: `${summaryLead} Across ${chefTotals.totalBranches} branches, ${brandName} is delivering ${chefTotals.ordersRecent} orders, ${formatMoney(chefTotals.gmvRecent)} in GMV, ${formatPercent(chefTotals.freeDeliveryRate)} free-delivery usage, and ${formatPercent(chefTotals.subsidyRatio, 2)} subsidy ratio.`,
       likelyCauses,
       actions,
       talkingPoints,
@@ -380,12 +380,9 @@ export function CopilotView({
     <>
       <header className="hero-panel panel hero-panel-copilot">
         <div>
-          <div className="brand-lockup">
-            <img src={chefzLogo} alt="The Chefz" className="brand-logo" />
-            <div>
-              <p className="eyebrow">Mario • Account Manager Copilot</p>
-              <h1>Vendor action center</h1>
-            </div>
+          <div>
+            <p className="eyebrow">Mario • Account Manager Copilot</p>
+            <h1>Vendor action center</h1>
           </div>
           <p className="hero-copy">
             Search by main_chef_id first, review all branches for that chef, then drill into a specific branch only when needed.
@@ -427,6 +424,33 @@ export function CopilotView({
         </div>
         {chefSearch && !showChefResults ? <p className="search-hint">No branches found for that main_chef_id.</p> : null}
         {!chefSearch ? <p className="search-hint">Start with a main_chef_id to load the branch portfolio.</p> : null}
+
+        {!chefSearch ? (
+          <div className="portfolio-directory">
+            {chefPortfolios.map((portfolio) => {
+              const ordersTrend = portfolio.ordersPrev > 0 ? ((portfolio.ordersRecent - portfolio.ordersPrev) / portfolio.ordersPrev) * 100 : 0
+              const gmvTrend = portfolio.gmvPrev > 0 ? ((portfolio.gmvRecent - portfolio.gmvPrev) / portfolio.gmvPrev) * 100 : 0
+              return (
+                <button
+                  key={portfolio.mainChefId}
+                  className="portfolio-directory-row"
+                  onClick={() => onChefSearchChange(String(portfolio.mainChefId))}
+                >
+                  <div className="portfolio-directory-main">
+                    <strong>{getBrandName(portfolio.mainChefId)}</strong>
+                    <span>main_chef_id {portfolio.mainChefId} • {portfolio.branchCount} branches • {portfolio.cuisine} • {portfolio.primaryCity}</span>
+                  </div>
+                  <div className="portfolio-directory-metrics">
+                    <span className="branch-score">Orders {portfolio.ordersRecent}</span>
+                    <span className="branch-score">GMV {formatMoney(portfolio.gmvRecent)}</span>
+                    <span className="branch-score">Trend {ordersTrend.toFixed(1)}% / {gmvTrend.toFixed(1)}%</span>
+                    <span className="branch-score">Avg score {portfolio.avgFinalScore.toFixed(1)}</span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
       </section>
 
       {showChefResults && chefTotals && chefCopilot ? (
@@ -435,7 +459,7 @@ export function CopilotView({
             <div className="section-heading">
               <div>
                 <p className="eyebrow">Portfolio summary</p>
-                <h2>Main chef {selectedChefId} across all branches</h2>
+                <h2>{selectedChefId !== null ? getBrandName(selectedChefId) : 'Selected portfolio'} across all branches</h2>
               </div>
             </div>
             <div className="portfolio-kpi-grid">
@@ -486,7 +510,7 @@ export function CopilotView({
             <div className="section-heading">
               <div>
                 <p className="eyebrow">Portfolio AI Copilot</p>
-                <h2>Main chef {selectedChefId} AM recommendations</h2>
+                <h2>{selectedChefId !== null ? getBrandName(selectedChefId) : 'Selected portfolio'} AM recommendations</h2>
               </div>
               <span className="status-chip tone-info">All branches</span>
             </div>
@@ -528,10 +552,10 @@ export function CopilotView({
             <div className="section-heading branch-selector-heading">
               <div>
                 <p className="eyebrow">Branch selector</p>
-                <h2>Main chef {selectedChefId} branch portfolio</h2>
+                <h2>{selectedChefId !== null ? getBrandName(selectedChefId) : 'Selected portfolio'} branch portfolio</h2>
               </div>
               <span className="branch-selector-summary">
-                {selectedVendor ? `Branch ${selectedVendor.vendorId} selected` : 'Select a branch to reveal branch details'}
+                {selectedVendor ? `${getBrandName(selectedVendor.mainChefId)} branch ${selectedVendor.vendorId} selected` : 'Select a branch to reveal branch details'}
               </span>
             </div>
             <div className="branch-selector-list compact-branch-selector-list">
@@ -545,7 +569,7 @@ export function CopilotView({
                     onClick={() => onSelectVendor(selected ? null : vendor)}
                   >
                     <div className="branch-selector-main compact-branch-selector-main">
-                      <strong>Vendor {vendor.vendorId}</strong>
+                      <strong>{getBrandName(vendor.mainChefId)} branch {vendor.vendorId}</strong>
                       <span>{vendor.city} • {vendor.cuisine}</span>
                     </div>
                     <div className="branch-selector-metrics compact-branch-selector-metrics">
@@ -608,14 +632,7 @@ export function MonitoringView({ payload, loading, refreshing, error, onRefresh 
     return <div className="loading-state">Dashboard data unavailable.</div>
   }
 
-  const connections = asArray(payload.connections)
   const disks = asArray(payload.disks)
-  const processes = asArray(payload.processes)
-  const adapters = asArray(payload.adapters)
-  const events = asArray(payload.events)
-  const firewallProfiles = asArray(payload.firewall)
-  const history = asArray(payload.history)
-  const networkCounters = asArray(payload.counters?.network)
 
   const cpuPercent = Number(payload.counters?.cpuPercent ?? 0)
   const memoryUsedPercent = Number(payload.derived?.memoryUsedPercent ?? 0)
@@ -623,20 +640,13 @@ export function MonitoringView({ payload, loading, refreshing, error, onRefresh 
   const memoryTotal = Number(payload.os?.totalVisibleMemoryGB ?? 0)
   const diskPrimary = disks[0]
   const latency = payload.internet?.latencyMs ?? null
-  const networkTotal = networkCounters.reduce((sum, item) => sum + Number(item.value ?? 0), 0)
-  const firewallEnabled = firewallProfiles.length > 0 ? firewallProfiles.every((profile) => Boolean(profile.Enabled)) : false
-  const defenderHealthy = Boolean(payload.defender?.AntivirusEnabled && payload.defender?.RealTimeProtectionEnabled)
-
   return (
     <>
       <header className="hero-panel panel">
         <div>
-          <div className="brand-lockup">
-            <img src={chefzLogo} alt="The Chefz" className="brand-logo" />
-            <div>
-              <p className="eyebrow">Mario • Live Monitoring</p>
-              <h1>Server command center</h1>
-            </div>
+          <div>
+            <p className="eyebrow">Mario • Live Monitoring</p>
+            <h1>Server command center</h1>
           </div>
           <p className="hero-copy">
             Live Windows and OpenClaw monitoring, refreshed automatically with local collector data.
@@ -689,215 +699,6 @@ export function MonitoringView({ payload, loading, refreshing, error, onRefresh 
             <strong className="metric-value">{latency === null ? 'offline' : `${latency} ms`}</strong>
             <span className="metric-detail">Jitter {payload.internet?.jitterMs ?? 'n/a'} ms</span>
           </article>
-        </div>
-      </section>
-
-      <section className="panel">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Security</p>
-            <h2>Protection and posture</h2>
-          </div>
-        </div>
-        <div className="metric-grid">
-          <article className={`metric-card ${defenderHealthy ? 'tone-good' : 'tone-critical'}`}>
-            <span className="metric-label">Windows Defender</span>
-            <strong className="metric-value">{defenderHealthy ? 'Protected' : 'Attention'}</strong>
-            <span className="metric-detail">Signatures {formatDate(payload.defender?.AntivirusSignatureLastUpdated)}</span>
-          </article>
-          <article className={`metric-card ${firewallEnabled ? 'tone-good' : 'tone-critical'}`}>
-            <span className="metric-label">Firewall</span>
-            <strong className="metric-value">{firewallEnabled ? 'Enabled' : 'Check needed'}</strong>
-            <span className="metric-detail">{firewallProfiles.length} profiles checked</span>
-          </article>
-          <article className="metric-card tone-warn">
-            <span className="metric-label">OpenClaw Audit</span>
-            <strong className="metric-value">Loaded</strong>
-            <span className="metric-detail">{payload.openclaw?.audit?.split('\n')[0] || 'Audit output available'}</span>
-          </article>
-          <article className="metric-card tone-warn">
-            <span className="metric-label">OpenClaw Updates</span>
-            <strong className="metric-value">Status</strong>
-            <span className="metric-detail">{payload.openclaw?.updateStatus?.split('\n')[0] || 'Update status available'}</span>
-          </article>
-        </div>
-      </section>
-
-      <section className="two-column">
-        <article className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">History</p>
-              <h2>Recent trend lines</h2>
-            </div>
-          </div>
-          <div className="history-grid">
-            <div className="history-card">
-              <div className="bar-row-header"><strong>CPU</strong><span>{cpuPercent.toFixed(1)}%</span></div>
-              <MiniChart values={history.map((item) => Number(item.cpuPercent ?? 0))} />
-            </div>
-            <div className="history-card">
-              <div className="bar-row-header"><strong>Memory used</strong><span>{memoryUsedPercent.toFixed(1)}%</span></div>
-              <MiniChart values={history.map((item) => Number(item.memoryUsedPercent ?? 0))} color="var(--warn)" />
-            </div>
-            <div className="history-card">
-              <div className="bar-row-header"><strong>Disk used</strong><span>{Number(diskPrimary?.UsedPercent ?? 0).toFixed(1)}%</span></div>
-              <MiniChart values={history.map((item) => Number(item.diskUsedPercent ?? 0))} color="var(--good)" />
-            </div>
-            <div className="history-card">
-              <div className="bar-row-header"><strong>Latency</strong><span>{latency === null ? 'n/a' : `${latency} ms`}</span></div>
-              <MiniChart values={history.map((item) => Number(item.latencyMs ?? 0))} color="var(--accent-2)" />
-            </div>
-          </div>
-        </article>
-
-        <article className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Connections</p>
-              <h2>TCP state spread</h2>
-            </div>
-          </div>
-          <div className="bar-list">
-            {connections.map((item, index) => (
-              <div key={`${item.Name ?? 'state'}-${index}`} className="bar-row">
-                <div className="bar-row-header">
-                  <span>{item.Name ?? 'Unknown'}</span>
-                  <strong>{item.Count ?? 0}</strong>
-                </div>
-                <div className="bar-track">
-                  <div className="bar-fill" style={{ width: `${Math.min(Number(item.Count ?? 0) * 1.8, 100)}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
-      </section>
-
-      <section className="two-column">
-        <article className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Processes</p>
-              <h2>Top resource consumers</h2>
-            </div>
-          </div>
-          <div className="process-list">
-            {processes.map((process, index) => (
-              <div key={`${process.ProcessName ?? 'process'}-${process.Id ?? index}`} className="process-row">
-                <div>
-                  <strong>{process.ProcessName ?? 'Unknown'}</strong>
-                  <p>PID {process.Id ?? 'n/a'}</p>
-                </div>
-                <div className="process-metrics">
-                  <span>CPU {process.CPU ?? 'n/a'}</span>
-                  <span>RAM {process.WSMB ?? 'n/a'} MB</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <article className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Storage</p>
-              <h2>Filesystem pressure</h2>
-            </div>
-          </div>
-          <div className="disk-list">
-            {disks.map((disk, index) => (
-              <div key={`${disk.Name ?? 'disk'}-${index}`} className="disk-card">
-                <div className="bar-row-header">
-                  <strong>{disk.Name ?? 'Disk'}</strong>
-                  <span>{Number(disk.UsedPercent ?? 0).toFixed(1)}% used</span>
-                </div>
-                <div className="bar-track large">
-                  <div className="bar-fill" style={{ width: `${Number(disk.UsedPercent ?? 0)}%` }} />
-                </div>
-                <p>{Number(disk.FreeGB ?? 0).toFixed(1)} GB free / {Number(disk.UsedGB ?? 0).toFixed(1)} GB used</p>
-              </div>
-            ))}
-          </div>
-        </article>
-      </section>
-
-      <section className="two-column">
-        <article className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Adapters</p>
-              <h2>Network interfaces</h2>
-            </div>
-          </div>
-          <div className="table-grid">
-            {adapters.map((adapter, index) => (
-              <div key={`${adapter.Name ?? 'adapter'}-${index}`} className="table-row compact">
-                <div>
-                  <strong>{adapter.Name ?? 'Unknown adapter'}</strong>
-                  <p>Packets {adapter.ReceivedUnicastPackets ?? 0} in / {adapter.SentUnicastPackets ?? 0} out</p>
-                </div>
-                <div className="process-metrics align-right">
-                  <span>RX {formatBytes(adapter.ReceivedBytes)}</span>
-                  <span>TX {formatBytes(adapter.SentBytes)}</span>
-                </div>
-              </div>
-            ))}
-            <div className="table-row compact">
-              <div>
-                <strong>Aggregate throughput</strong>
-                <p>All reported network interfaces</p>
-              </div>
-              <div className="process-metrics align-right">
-                <span>{formatBytes(networkTotal)}/s</span>
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <article className="panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">OpenClaw</p>
-              <h2>Runtime and security output</h2>
-            </div>
-          </div>
-          <div className="terminal-card">
-            <h3>Status</h3>
-            <pre>{payload.openclaw?.status ?? 'n/a'}</pre>
-            <h3>Update status</h3>
-            <pre>{payload.openclaw?.updateStatus ?? 'n/a'}</pre>
-            <h3>Security audit</h3>
-            <pre>{payload.openclaw?.audit ?? 'n/a'}</pre>
-          </div>
-        </article>
-      </section>
-
-      <section className="panel">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">System log</p>
-            <h2>Recent notable events</h2>
-          </div>
-        </div>
-        <div className="event-list">
-          {events.slice(0, 8).map((event, index) => {
-            const level = event.LevelDisplayName ?? 'Information'
-            const tone = /error/i.test(level) ? 'critical' : /warn/i.test(level) ? 'warn' : 'info'
-            return (
-              <div key={`${event.TimeCreated ?? 'event'}-${index}`} className="event-row">
-                <div className={`event-marker tone-${tone}`} />
-                <div className="event-time">{formatDate(event.TimeCreated)}</div>
-                <div>
-                  <div className="event-headline">
-                    <strong>{event.ProviderName ?? 'Unknown source'}</strong>
-                    <span>{event.LevelDisplayName ?? 'Info'}</span>
-                  </div>
-                  <p>{event.Message?.replace(/\s+/g, ' ').trim() ?? 'No message'}</p>
-                </div>
-              </div>
-            )
-          })}
         </div>
       </section>
     </>
