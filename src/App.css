@@ -111,14 +111,6 @@ button {
   margin-bottom: 14px;
 }
 
-.brand-logo {
-  width: 160px;
-  max-width: 32vw;
-  height: auto;
-  border-radius: 18px;
-  box-shadow: 0 16px 40px rgba(235, 101, 44, 0.25);
-}
-
 .hero-panel {
   display: flex;
   justify-content: space-between;
@@ -282,6 +274,46 @@ h3 {
 .search-hint {
   margin-top: 14px;
   color: var(--muted);
+}
+
+.portfolio-directory {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.portfolio-directory-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 14px;
+  align-items: center;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.portfolio-directory-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.portfolio-directory-main span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.portfolio-directory-metrics {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .branch-overview-grid {
@@ -778,14 +810,16 @@ h3 {
 
   .table-row,
   .process-row,
-  .branch-selector-row {
+  .branch-selector-row,
+  .portfolio-directory-row {
     grid-template-columns: 1fr;
     align-items: flex-start;
   }
 
   .table-meta,
   .process-metrics,
-  .branch-selector-metrics {
+  .branch-selector-metrics,
+  .portfolio-directory-metrics {
     align-items: flex-start;
     justify-content: flex-start;
   }

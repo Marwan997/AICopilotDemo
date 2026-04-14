@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import './App.css'
-import { vendorCases } from './demoData'
+import { curatedVendorCases } from './curatedVendorData'
 import { CopilotView } from './components'
 
 function App() {
@@ -15,7 +15,7 @@ function App() {
   }, [chefSearch])
 
   const chefBranches = useMemo(
-    () => (selectedChefId === null ? [] : vendorCases.filter((vendor) => vendor.mainChefId === selectedChefId)),
+    () => (selectedChefId === null ? [] : curatedVendorCases.filter((vendor) => vendor.mainChefId === selectedChefId)),
     [selectedChefId],
   )
 
