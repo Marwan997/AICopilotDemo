@@ -37,6 +37,7 @@ function VendorDetailCard({ vendor }: { vendor: VendorCase }) {
           <h2>
             {branchLabel} • {vendor.city}
           </h2>
+          <p className="detail-explainer">Branch trends compare the latest window vs the previous matching window. They are not cumulative since the beginning of the data.</p>
         </div>
         <span className={`status-chip tone-${tone}`}>{vendor.classification}</span>
       </div>
@@ -93,7 +94,7 @@ function VendorDetailCard({ vendor }: { vendor: VendorCase }) {
           <div className="section-heading compact-heading">
             <div>
               <p className="eyebrow">Peer position</p>
-              <h3>Benchmark percentiles</h3>
+              <h3>Percentile vs comparable peers</h3>
             </div>
           </div>
           <div className="bar-list">
@@ -381,15 +382,14 @@ export function CopilotView({
       <header className="hero-panel panel hero-panel-copilot">
         <div>
           <div>
-            <p className="eyebrow">Mario • Account Manager Copilot</p>
-            <h1>Account Management AI Copilot</h1>
+            <h1>The Chefz AI Center</h1>
           </div>
           <p className="hero-copy">
-            Search by main_chef_id first, review all branches for that chef, then drill into a specific branch only when needed.
+            Search by brand_id first, review the portfolio summary across branches, then drill into a specific branch when needed.
           </p>
           <div className="hero-meta">
             <span>Search by main_chef_id</span>
-            <span>Branch-level analytics</span>
+            <span>Portfolio and branch analytics</span>
             <span>AI explains and recommends, it does not invent KPIs</span>
           </div>
         </div>
@@ -471,12 +471,12 @@ export function CopilotView({
               <article className="portfolio-kpi-box">
                 <span className="portfolio-kpi-label">Orders</span>
                 <strong className="portfolio-kpi-value">{chefTotals.ordersRecent}</strong>
-                <span className="portfolio-kpi-detail">{chefTotals.ordersTrendPct.toFixed(1)}% trend</span>
+                <span className="portfolio-kpi-detail">{chefTotals.ordersTrendPct.toFixed(1)}% vs previous comparison window</span>
               </article>
               <article className="portfolio-kpi-box">
                 <span className="portfolio-kpi-label">GMV</span>
                 <strong className="portfolio-kpi-value">{formatMoney(chefTotals.gmvRecent)}</strong>
-                <span className="portfolio-kpi-detail">{chefTotals.gmvTrendPct.toFixed(1)}% trend</span>
+                <span className="portfolio-kpi-detail">{chefTotals.gmvTrendPct.toFixed(1)}% vs previous comparison window</span>
               </article>
               <article className="portfolio-kpi-box">
                 <span className="portfolio-kpi-label">AOV</span>
@@ -494,9 +494,9 @@ export function CopilotView({
                 <span className="portfolio-kpi-detail">Risk branch {chefTotals.topRiskBranch.vendorId}</span>
               </article>
               <article className="portfolio-kpi-box">
-                <span className="portfolio-kpi-label">Subsidy</span>
-                <strong className="portfolio-kpi-value">{formatPercent(chefTotals.subsidyRatio, 2)}</strong>
-                <span className="portfolio-kpi-detail">Free delivery {formatPercent(chefTotals.freeDeliveryRate)}</span>
+                <span className="portfolio-kpi-label">Free delivery</span>
+                <strong className="portfolio-kpi-value">{formatPercent(chefTotals.freeDeliveryRate)}</strong>
+                <span className="portfolio-kpi-detail">Portfolio-wide free delivery participation</span>
               </article>
               <article className="portfolio-kpi-box">
                 <span className="portfolio-kpi-label">Net take</span>
@@ -513,6 +513,10 @@ export function CopilotView({
                 <h2>{selectedChefId !== null ? getBrandName(selectedChefId) : 'Selected portfolio'} AM recommendations</h2>
               </div>
               <span className="status-chip tone-info">All branches</span>
+            </div>
+
+            <div className="explanation-note">
+              Trends in this view compare the latest period against the previous matching period. They are not running sums from the beginning of the dataset.
             </div>
 
             <div className="copilot-block">
@@ -589,7 +593,7 @@ export function CopilotView({
                 <div>
                   <p className="eyebrow">Selected branch</p>
                   <h2>
-                    Vendor {selectedVendor.vendorId} • {selectedVendor.city}
+                    {getBrandName(selectedVendor.mainChefId)} branch {selectedVendor.vendorId} • {selectedVendor.city}
                   </h2>
                 </div>
                 <span className={`status-chip tone-${classificationTone(selectedVendor.classification)}`}>

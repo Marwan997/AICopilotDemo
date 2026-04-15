@@ -132,6 +132,25 @@ button {
   font-size: 1.02rem;
 }
 
+.explanation-note,
+.detail-explainer {
+  color: var(--muted);
+  font-size: 0.94rem;
+  line-height: 1.55;
+}
+
+.explanation-note {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.detail-explainer {
+  margin-top: 10px;
+}
+
 .hero-meta {
   display: flex;
   flex-wrap: wrap;
@@ -230,6 +249,10 @@ h3 {
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 20px;
+}
+
+.detail-explanation-panel {
+  margin-bottom: 16px;
 }
 
 .metric-grid,
