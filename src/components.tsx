@@ -404,7 +404,7 @@ export function CopilotView({
         <div className="section-heading">
           <div>
             <p className="eyebrow">Chef search</p>
-            <h2>Find branches by main_chef_id</h2>
+            <h2>Search for a brand</h2>
           </div>
         </div>
         <div className="search-panel">
