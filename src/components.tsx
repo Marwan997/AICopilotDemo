@@ -382,7 +382,7 @@ export function CopilotView({
         <div>
           <div>
             <p className="eyebrow">Mario • Account Manager Copilot</p>
-            <h1>Vendor action center</h1>
+            <h1>Account Management AI Copilot</h1>
           </div>
           <p className="hero-copy">
             Search by main_chef_id first, review all branches for that chef, then drill into a specific branch only when needed.
