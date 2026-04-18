@@ -330,50 +330,178 @@ export function CopilotView({
     if (!chefTotals || !selectedChefId) return null
 
     const brandName = getBrandName(selectedChefId)
-    const healthyCount = chefTotals.classCounts.Healthy ?? 0
-    const highPotentialCount = chefTotals.classCounts['High Potential'] ?? 0
-    const needsAttentionCount = chefTotals.classCounts['Needs Attention'] ?? 0
-    const atRiskCount = chefTotals.classCounts['At Risk'] ?? 0
+    const topOpportunity = chefTotals.topOpportunityBranch
+    const topRisk = chefTotals.topRiskBranch
+    const sameBranch = topOpportunity.vendorId === topRisk.vendorId
 
-    const freeDeliveryStory = chefTotals.freeDeliveryRate >= 0.16
-      ? 'Free-delivery adoption is already meaningful in this portfolio, so the AM opportunity is to sharpen where it is used rather than push it everywhere.'
-      : 'Free-delivery adoption still has room to expand, which creates a clear AM lever for portfolios that need stronger conversion or acquisition.'
+    if (selectedChefId === 1193) {
+      return {
+        summary: `Lazurde Gifts is a mixed-quality premium portfolio. Across ${chefTotals.totalBranches} branches it is delivering ${chefTotals.ordersRecent} orders and ${formatMoney(chefTotals.gmvRecent)} in GMV, but the AM story is split: one branch is scaling cleanly, one branch is cooling, and one branch is leaking value through cancellation.`,
+        likelyCauses: [
+          'The portfolio has strong basket quality and low subsidy dependence, which makes the upside commercially attractive.',
+          'The problem is not one single portfolio-wide issue, it is uneven branch health inside the same brand.',
+          'Because the brand includes both strong and fragile branches, AM strategy needs to be selective instead of uniform.',
+        ],
+        actions: [
+          'Lead with branch 100462 as the proof point for growth and premium positioning, because it shows the cleanest expansion story in the portfolio.',
+          'Treat branch 100459 as an execution-recovery case first, with cancellation reduction ahead of extra visibility.',
+          'Use small reactivation tests on branch 100460 so the portfolio grows without dragging weaker branches behind it.',
+        ],
+        talkingPoints: [
+          'This brand is valuable because even small performance gains matter at its basket size.',
+          'We should not pitch the same AM package across all four branches because they are solving different problems.',
+          'The smartest move is to scale the healthiest branch, recover the weakest branch, and selectively wake up the quieter branch.',
+        ],
+      }
+    }
 
-    const marketingStory = chefTotals.ordersTrendPct >= 12 && chefTotals.subsidyRatio < 0.02
-      ? 'The portfolio has enough demand momentum to justify more in-app marketing conversations, especially for branches that can scale without heavy support.'
-      : 'In-app marketing should be pitched selectively, focusing on branches where visibility can unlock demand rather than mask weak fundamentals.'
+    if (selectedChefId === 1069) {
+      return {
+        summary: `Noodle Box is a risky-growth portfolio. Across ${chefTotals.totalBranches} branches it is generating ${chefTotals.ordersRecent} orders and ${formatMoney(chefTotals.gmvRecent)} in GMV, but both branches are at risk because demand is arriving faster than it is being converted cleanly.`,
+        likelyCauses: [
+          'The topline growth is real, but delivered rate, decline rate, and cancel rate say too much demand is failing inside the funnel.',
+          'Support is already meaningful, so the portfolio does not need more demand first, it needs better conversion quality first.',
+          'Because both branches are under pressure, the AM story here is operational credibility before commercial acceleration.',
+        ],
+        actions: [
+          'Take branch 100168 into the merchant discussion as the clearest example of high growth with unhealthy execution underneath it.',
+          'Ask for a cross-branch diagnosis of cancellations, acceptance issues, and menu availability before proposing more marketing spend.',
+          'Hold back broader growth pushes until both branches improve delivered quality and stop wasting demand.',
+        ],
+        talkingPoints: [
+          'This brand is not short on demand, it is short on clean fulfillment.',
+          'A growth score can be high while the portfolio is still risky, because growth alone does not mean healthy unit economics or customer experience.',
+          'The AM win here is to turn messy demand into reliable demand, then scale from there.',
+        ],
+      }
+    }
 
-    const exclusivityStory = chefTotals.weightedAov >= 95 && chefTotals.deliveredRate >= 0.91
-      ? 'This portfolio has enough basket quality and service consistency to make exclusive offers a credible commercial pitch.'
-      : 'Exclusive offers should be used selectively, only where the branch proposition is strong enough to justify platform-first value.'
+    if (selectedChefId === 1209) {
+      return {
+        summary: `Game Station is a clean single-branch portfolio with ${chefTotals.ordersRecent} orders, ${formatMoney(chefTotals.gmvRecent)} in GMV, excellent delivery quality, and very low support dependence. This is a strategic upsell case, not a rescue case.`,
+        likelyCauses: [
+          'The branch is winning on quality and consistency, not on heavy platform funding.',
+          'Basket strength and delivered rate make this one of the more credible premium relationship candidates in the demo.',
+          'Because the portfolio is only one strong branch, clarity matters more than complexity in the AM pitch.',
+        ],
+        actions: [
+          'Use branch 100499 as a premium partnership story, with exclusivity or elevated placement framed as an earned next step.',
+          'Protect the current service quality while testing a small amount of high-confidence visibility.',
+          'Keep the merchant conversation focused on strategic value, not on generic promotional support.',
+        ],
+        talkingPoints: [
+          'This is the kind of branch we want to deepen, because it already performs well without asking the platform to carry it.',
+          'The best AM move here is to build on strength, not invent a problem that is not really there.',
+          'If we pitch this correctly, the merchant should hear partnership, not discounting.',
+        ],
+      }
+    }
 
-    const summaryLead = highPotentialCount > 0
-      ? `${brandName} is a commercially expandable portfolio with ${highPotentialCount} high-potential branch${highPotentialCount > 1 ? 'es' : ''} that can be pushed through targeted AM levers.`
-      : healthyCount > 0
-        ? `${brandName} is a stable portfolio where AM upside will come from sharper monetization and visibility plays, not blanket outreach.`
-        : `${brandName} needs a more selective commercial approach, with AM effort concentrated on the branches most likely to convert growth levers into value.`
+    if (selectedChefId === 1202) {
+      return {
+        summary: `Cotton Care is a premium portfolio with mixed momentum. Across ${chefTotals.totalBranches} branches it is generating ${chefTotals.ordersRecent} orders and ${formatMoney(chefTotals.gmvRecent)} in GMV, but one branch is healthy while two branches are clearly cooling off.`,
+        likelyCauses: [
+          'The portfolio still has strong basket quality and acceptable service, so the slowdown does not look like a structural collapse.',
+          'The real issue is weakening momentum at the branch level, especially where orders and GMV have both softened.',
+          'Because subsidy is still low, the brand has room for selective reactivation without becoming promo-led.',
+        ],
+        actions: [
+          'Use branch 100478 as the anchor branch in the merchant conversation because it shows the portfolio can still perform cleanly.',
+          'Reawaken branches 100479 and 100480 with light, focused support rather than broad discounting.',
+          'Frame the portfolio plan around protecting premium value while rebuilding traffic where it has cooled.',
+        ],
+        talkingPoints: [
+          'This brand does not need reinvention, it needs momentum restored in the right places.',
+          'The branch mix tells us the proposition still works, but not every branch is pulling equally anymore.',
+          'A measured AM plan here should feel like reactivation with discipline, not panic spending.',
+        ],
+      }
+    }
 
-    const likelyCauses = [freeDeliveryStory, marketingStory, exclusivityStory]
+    if (selectedChefId === 1154) {
+      return {
+        summary: `Poke Bowl Co. is a support-assisted growth portfolio. Across ${chefTotals.totalBranches} branches it is delivering ${chefTotals.ordersRecent} orders and ${formatMoney(chefTotals.gmvRecent)} in GMV, with real upside, but support usage is already high enough that the next AM move needs to be sharper, not bigger.`,
+        likelyCauses: [
+          'The portfolio has good demand momentum and decent service quality, so the growth case is real.',
+          'Free delivery and subsidy are already doing meaningful work, which makes efficiency the key question now.',
+          'Because both branches are healthy enough to scale, AM value comes from shaping growth quality, not from forcing more spend.',
+        ],
+        actions: [
+          'Lead with branch 100367 as the proof that the brand can convert demand, then use branch 100366 to discuss how support should be tightened.',
+          'Audit where free delivery is truly incremental and reduce the parts of the spend that are just carrying existing demand.',
+          'Keep the merchant focused on profitable acceleration instead of chasing topline growth at any cost.',
+        ],
+        talkingPoints: [
+          'This brand has momentum, but it is the kind of momentum that can become expensive if we get lazy.',
+          'Our role as AM copilot is to help the merchant keep the upside while improving the shape of the growth engine.',
+          'The story here is not spend more, it is spend smarter.',
+        ],
+      }
+    }
 
-    const actions = [
-      `Use branch ${chefTotals.topOpportunityBranch.vendorId} as the lead growth conversation for in-app marketing or exclusive placement, because it shows the strongest upside profile in the portfolio.`,
-      chefTotals.freeDeliveryRate < 0.14
-        ? 'Open a free-delivery activation conversation with the branches that still have room to use delivery support as a conversion lever.'
-        : 'Refine free-delivery participation instead of broadening it, so the portfolio keeps conversion support where it works best.',
-      'Segment the portfolio by commercial lever, so AMs know which branches to pitch on free delivery, which on exclusivity, and which on paid in-app marketing.',
-    ]
+    if (selectedChefId === 1031) {
+      return {
+        summary: `Patty Republic is one of the cleanest scalable portfolios in the demo. Across ${chefTotals.totalBranches} branches it is delivering ${chefTotals.ordersRecent} orders and ${formatMoney(chefTotals.gmvRecent)} in GMV, with two high-potential branches that look ready for more visibility.`,
+        likelyCauses: [
+          'Both branches show strong demand momentum without looking heavily subsidy-dependent.',
+          'Operational quality is healthy enough to support more traffic, especially in the windows where the brand already wins.',
+          'This portfolio looks more under-exposed than under-performing, which is a very different AM problem from a rescue case.',
+        ],
+        actions: [
+          'Use branch 100078 as the lead growth pitch and branch 100077 as supporting evidence that the story is repeatable across the portfolio.',
+          'Push in-app visibility around the strongest converting periods instead of turning the brand into a broad discount play.',
+          'Monitor quality closely as volume scales so the portfolio keeps its clean-growth profile.',
+        ],
+        talkingPoints: [
+          'This is the kind of brand where AM support should feel sharp and confident, because the fundamentals are already working.',
+          'The upside is not fixing weakness, it is unlocking more of what is already proving itself.',
+          'If we scale this portfolio well, it becomes one of the most convincing growth stories in the demo.',
+        ],
+      }
+    }
 
-    const talkingPoints = [
-      `${brandName} has ${healthyCount} healthy, ${highPotentialCount} high-potential, ${needsAttentionCount} needs-attention, and ${atRiskCount} at-risk branches that still require different commercial pitches inside the same portfolio.`,
-      `Branch ${chefTotals.topOpportunityBranch.vendorId} is the clearest candidate for a growth conversation, while branch ${chefTotals.topRiskBranch.vendorId} should not receive the same commercial push until its position is better understood.`,
-      'The AM objective is to match each branch with the right commercial lever, not push the same package across the full brand portfolio.',
-    ]
+    if (selectedChefId === 1195) {
+      return {
+        summary: `The Date Room is a dependency-risk portfolio. Across ${chefTotals.totalBranches} branches it is generating ${chefTotals.ordersRecent} orders and ${formatMoney(chefTotals.gmvRecent)} in GMV, but the current growth picture leans too heavily on free delivery and subsidy to feel fully healthy.`,
+        likelyCauses: [
+          'The brand is clearly able to win demand, but support intensity is doing a lot of the lifting.',
+          'One branch still has upside, while the other is already showing enough service fragility to warn against a broad growth push.',
+          'This makes the AM challenge less about adding more support and more about reducing dependence without killing momentum.',
+        ],
+        actions: [
+          'Use branch 100466 as the cleaner version of the growth story, then contrast it with branch 100465 to show why support quality matters.',
+          'Tighten free-delivery usage gradually so the merchant can see where demand is real versus heavily carried by incentives.',
+          'Keep the portfolio growth plan tied to better reliability and better support efficiency at the same time.',
+        ],
+        talkingPoints: [
+          'This brand does not need zero support, it needs healthier support.',
+          'If we treat supported demand as fully organic demand, we will overestimate how strong this portfolio really is.',
+          'The AM play here is to protect growth while making the economics more believable.',
+        ],
+      }
+    }
 
     return {
-      summary: `${summaryLead} Across ${chefTotals.totalBranches} branches, ${brandName} is delivering ${chefTotals.ordersRecent} orders, ${formatMoney(chefTotals.gmvRecent)} in GMV, ${formatPercent(chefTotals.freeDeliveryRate)} free-delivery usage, and ${formatPercent(chefTotals.subsidyRatio, 2)} subsidy ratio.`,
-      likelyCauses,
-      actions,
-      talkingPoints,
+      summary: `${brandName} has ${chefTotals.totalBranches} branches, ${chefTotals.ordersRecent} recent orders, and ${formatMoney(chefTotals.gmvRecent)} in GMV. The AM view should stay selective and branch-aware rather than assuming one portfolio message fits everything.`,
+      likelyCauses: [
+        'Portfolio performance is shaped by branch mix, not just one top-line trend.',
+        'The healthiest AM stories usually come from the branches with the best balance of demand, quality, and economics.',
+        'Where branch health differs, the portfolio recommendation should stay segmented.',
+      ],
+      actions: [
+        `Start with branch ${topOpportunity.vendorId} as the strongest commercial story in the portfolio.`,
+        sameBranch
+          ? `Because this is effectively a one-shape portfolio, pressure-test branch ${topRisk.vendorId} carefully before broadening support.`
+          : `Keep branch ${topRisk.vendorId} on a separate path from branch ${topOpportunity.vendorId} so the AM plan stays honest.`,
+        'Make sure each branch is being pitched on the lever that matches its actual KPI picture.',
+      ],
+      talkingPoints: [
+        `${brandName} needs a portfolio conversation that respects the branch-level differences inside it.`,
+        sameBranch
+          ? `The same branch is carrying both the upside and the risk story, so the pitch needs extra care.`
+          : `The growth branch and the risk branch are not the same story, and we should talk about them differently.`,
+        'A good AM copilot should help the team avoid one-size-fits-all portfolio messaging.',
+      ],
     }
   }, [chefTotals, selectedChefId])
 
