@@ -702,7 +702,7 @@ export const curatedVendorCases: VendorCase[] = [
       "efficiencyPercentile": 21.62
     },
     "copilot": {
-      "performanceSummary": "The Date Room branch 100466 is high potential, but it is leaning heavily on platform-funded support. Orders and GMV are both growing modestly, quality is decent, yet free delivery participation is above 30% and subsidy is high for this kind of branch. The AM question is not whether the branch can grow, it is whether it can grow more efficiently.",
+      "performanceSummary": "Bait Al Tamr branch 100466 is high potential, but it is leaning heavily on platform-funded support. Orders and GMV are both growing modestly, quality is decent, yet free delivery participation is above 30% and subsidy is high for this kind of branch. The AM question is not whether the branch can grow, it is whether it can grow more efficiently.",
       "likelyCauses": [
         "Customers are responding, but the branch is relying heavily on free delivery to sustain conversion.",
         "The economics suggest the branch may not be capturing enough organic demand without support.",
@@ -822,7 +822,7 @@ export const curatedVendorCases: VendorCase[] = [
       "efficiencyPercentile": 52.25
     },
     "copilot": {
-      "performanceSummary": "The Date Room branch 100465 is still growing, with orders up 13.2% and GMV up 14.1%, but the branch is not clean enough to treat as a straightforward growth case. Delivered rate is weaker, cancel rate is elevated, and support usage is already meaningful. The AM move is to keep the upside while reducing fragility.",
+      "performanceSummary": "Bait Al Tamr branch 100465 is still growing, with orders up 13.2% and GMV up 14.1%, but the branch is not clean enough to treat as a straightforward growth case. Delivered rate is weaker, cancel rate is elevated, and support usage is already meaningful. The AM move is to keep the upside while reducing fragility.",
       "likelyCauses": [
         "The branch is still attracting demand, but service quality is not holding up as cleanly as it should.",
         "Commercial support is already active, which means some of the growth may be more expensive than it looks.",
