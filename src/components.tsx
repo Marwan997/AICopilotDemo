@@ -95,6 +95,7 @@ function VendorDetailCard({ vendor }: { vendor: VendorCase }) {
             <div>
               <p className="eyebrow">Peer position</p>
               <h3>Percentile vs comparable peers</h3>
+              <p className="detail-explainer">Shows how this branch ranks versus similar branches in orders, GMV, AOV, quality, and efficiency.</p>
             </div>
           </div>
           <div className="bar-list">
@@ -597,6 +598,23 @@ export function CopilotView({
                 <span className="portfolio-kpi-detail">{chefTotals.classCounts.Healthy ?? 0} healthy</span>
               </article>
               <article className="portfolio-kpi-box">
+                <span className="portfolio-kpi-label">Peer position</span>
+                <strong className="portfolio-kpi-value">{chefTotals.ordersTrendPct >= 12 && chefTotals.deliveredRate >= 0.91 && chefTotals.cancelRate < 0.06 && chefTotals.subsidyRatio < 0.02
+                  ? 'Ahead'
+                  : chefTotals.ordersTrendPct >= 8 && (chefTotals.deliveredRate < 0.9 || chefTotals.cancelRate >= 0.07)
+                    ? 'Growth ahead, quality behind'
+                    : chefTotals.ordersTrendPct < 0 && chefTotals.deliveredRate >= 0.9
+                      ? 'Quality ahead, growth behind'
+                      : 'Mixed'}</strong>
+                <span className="portfolio-kpi-detail">{chefTotals.ordersTrendPct >= 12 && chefTotals.deliveredRate >= 0.91 && chefTotals.cancelRate < 0.06 && chefTotals.subsidyRatio < 0.02
+                  ? 'Strong growth with healthy quality and efficient support.'
+                  : chefTotals.ordersTrendPct >= 8 && (chefTotals.deliveredRate < 0.9 || chefTotals.cancelRate >= 0.07)
+                    ? 'Demand is strong, but service quality is lagging.'
+                    : chefTotals.ordersTrendPct < 0 && chefTotals.deliveredRate >= 0.9
+                      ? 'Quality is holding up, but momentum has softened.'
+                      : 'Performance is mixed across growth, quality, and efficiency.'}</span>
+              </article>
+              <article className="portfolio-kpi-box">
                 <span className="portfolio-kpi-label">Orders</span>
                 <strong className="portfolio-kpi-value">{chefTotals.ordersRecent}</strong>
                 <span className="portfolio-kpi-detail">{chefTotals.ordersTrendPct.toFixed(1)}% vs previous comparison window</span>
@@ -625,11 +643,6 @@ export function CopilotView({
                 <span className="portfolio-kpi-label">Free delivery</span>
                 <strong className="portfolio-kpi-value">{formatPercent(chefTotals.freeDeliveryRate)}</strong>
                 <span className="portfolio-kpi-detail">Portfolio-wide free delivery participation</span>
-              </article>
-              <article className="portfolio-kpi-box">
-                <span className="portfolio-kpi-label">Net take</span>
-                <strong className="portfolio-kpi-value">{formatPercent(chefTotals.netTakeRatio, 2)}</strong>
-                <span className="portfolio-kpi-detail">Opportunity {chefTotals.topOpportunityBranch.vendorId}</span>
               </article>
             </div>
           </section>

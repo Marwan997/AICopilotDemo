@@ -194,7 +194,7 @@ export const brandNamesByMainChefId: Record<number, string> = {
   1192: 'Boba Nation',
   1193: 'Lazurde Gifts',
   1194: 'Misk Boutique',
-  1195: 'The Date Room',
+  1195: 'Bait Al Tamr',
   1196: 'Arabian Oud',
   1197: 'Abdul Samad Al Qurashi',
   1198: 'Aseel Accessories',
