@@ -625,7 +625,7 @@ export function CopilotView({
               <article className="portfolio-kpi-box">
                 <span className="portfolio-kpi-label">Free delivery</span>
                 <strong className="portfolio-kpi-value">{formatPercent(chefTotals.freeDeliveryRate)}</strong>
-                <span className="portfolio-kpi-detail">Portfolio-wide free delivery participation</span>
+                <span className="portfolio-kpi-detail">Portfolio-wide free delivery weight</span>
               </article>
             </div>
           </section>
@@ -637,10 +637,6 @@ export function CopilotView({
                 <h2>{selectedChefId !== null ? getBrandName(selectedChefId) : 'Selected portfolio'} AM recommendations</h2>
               </div>
               <span className="status-chip tone-info">All branches</span>
-            </div>
-
-            <div className="explanation-note">
-              Trends in this view compare the latest month against last month. They are not running sums from the beginning of the dataset.
             </div>
 
             <div className="copilot-block">
