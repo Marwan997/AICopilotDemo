@@ -4,15 +4,8 @@ import { curatedVendorCases } from './curatedVendorData'
 import { CopilotView } from './components'
 
 function App() {
-  const [chefSearch, setChefSearch] = useState('')
+  const [selectedChefId, setSelectedChefId] = useState<number | null>(curatedVendorCases[0]?.mainChefId ?? null)
   const [selectedVendorId, setSelectedVendorId] = useState<number | null>(null)
-
-  const selectedChefId = useMemo(() => {
-    const trimmed = chefSearch.trim()
-    if (!trimmed) return null
-    const parsed = Number(trimmed)
-    return Number.isInteger(parsed) ? parsed : null
-  }, [chefSearch])
 
   const chefBranches = useMemo(
     () => (selectedChefId === null ? [] : curatedVendorCases.filter((vendor) => vendor.mainChefId === selectedChefId)),
@@ -27,12 +20,11 @@ function App() {
   return (
     <div className="dashboard-shell">
       <CopilotView
-        chefSearch={chefSearch}
-        onChefSearchChange={(value) => {
-          setChefSearch(value)
+        selectedChefId={selectedChefId}
+        onSelectChefId={(chefId) => {
+          setSelectedChefId(chefId)
           setSelectedVendorId(null)
         }}
-        selectedChefId={selectedChefId}
         chefBranches={chefBranches}
         selectedVendor={selectedVendor}
         onSelectVendor={(vendor) => setSelectedVendorId(vendor?.vendorId ?? null)}

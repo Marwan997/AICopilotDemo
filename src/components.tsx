@@ -37,7 +37,7 @@ function VendorDetailCard({ vendor }: { vendor: VendorCase }) {
           <h2>
             {branchLabel} • {vendor.city}
           </h2>
-          <p className="detail-explainer">Branch trends compare the latest window vs the previous matching window. They are not cumulative since the beginning of the data.</p>
+          <p className="detail-explainer">Branch trends compare the latest month vs last month. They are not cumulative since the beginning of the data.</p>
         </div>
         <span className={`status-chip tone-${tone}`}>{vendor.classification}</span>
       </div>
@@ -47,14 +47,14 @@ function VendorDetailCard({ vendor }: { vendor: VendorCase }) {
           <span className="metric-label">Orders trend</span>
           <strong className="metric-value">{vendor.kpis.ordersTrendPct.toFixed(1)}%</strong>
           <span className="metric-detail">
-            {vendor.kpis.deliveredOrdersRecent} vs {vendor.kpis.deliveredOrdersPrev} delivered orders
+            {vendor.kpis.deliveredOrdersRecent} vs {vendor.kpis.deliveredOrdersPrev} delivered orders last month
           </span>
         </article>
         <article className="metric-card tone-info">
           <span className="metric-label">GMV trend</span>
           <strong className="metric-value">{vendor.kpis.gmvTrendPct.toFixed(1)}%</strong>
           <span className="metric-detail">
-            {formatMoney(vendor.kpis.deliveredGmvRecent)} vs {formatMoney(vendor.kpis.deliveredGmvPrev)}
+            {formatMoney(vendor.kpis.deliveredGmvRecent)} vs {formatMoney(vendor.kpis.deliveredGmvPrev)} last month
           </span>
         </article>
         <article className={`metric-card tone-${tone}`}>
@@ -69,7 +69,6 @@ function VendorDetailCard({ vendor }: { vendor: VendorCase }) {
         <div className="score-card"><div className="bar-row-header"><strong>Quality</strong><span>{vendor.scores.quality.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${vendor.scores.quality}%` }} /></div></div>
         <div className="score-card"><div className="bar-row-header"><strong>Efficiency</strong><span>{vendor.scores.efficiency.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${vendor.scores.efficiency}%` }} /></div></div>
         <div className="score-card"><div className="bar-row-header"><strong>Seasonality</strong><span>{vendor.scores.seasonality.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${vendor.scores.seasonality}%` }} /></div></div>
-        <div className="score-card"><div className="bar-row-header"><strong>Benchmark</strong><span>{vendor.scores.benchmark.toFixed(1)}</span></div><div className="bar-track large"><div className="bar-fill" style={{ width: `${vendor.scores.benchmark}%` }} /></div></div>
       </div>
 
       <div className="two-column two-column-tight">
@@ -191,16 +190,14 @@ function CopilotCard({ vendor }: { vendor: VendorCase }) {
 }
 
 export function CopilotView({
-  chefSearch,
-  onChefSearchChange,
   selectedChefId,
+  onSelectChefId,
   chefBranches,
   selectedVendor,
   onSelectVendor,
 }: {
-  chefSearch: string
-  onChefSearchChange: (value: string) => void
   selectedChefId: number | null
+  onSelectChefId: (chefId: number) => void
   chefBranches: VendorCase[]
   selectedVendor: VendorCase | null
   onSelectVendor: (vendor: VendorCase | null) => void
@@ -463,7 +460,7 @@ export function CopilotView({
 
     if (selectedChefId === 1195) {
       return {
-        summary: `The Date Room is a dependency-risk portfolio. Across ${chefTotals.totalBranches} branches it is generating ${chefTotals.ordersRecent} orders and ${formatMoney(chefTotals.gmvRecent)} in GMV, but the current growth picture leans too heavily on free delivery and subsidy to feel fully healthy.`,
+        summary: `Bait Al Tamr is a dependency-risk portfolio. Across ${chefTotals.totalBranches} branches it is generating ${chefTotals.ordersRecent} orders and ${formatMoney(chefTotals.gmvRecent)} in GMV, but the current growth picture leans too heavily on free delivery and subsidy to feel fully healthy.`,
         likelyCauses: [
           'The brand is clearly able to win demand, but support intensity is doing a lot of the lifting.',
           'One branch still has upside, while the other is already showing enough service fragility to warn against a broad growth push.',
@@ -514,10 +511,10 @@ export function CopilotView({
             <h1>The Chefz AI Center</h1>
           </div>
           <p className="hero-copy">
-            Search by brand_id first, review the portfolio summary across branches, then drill into a specific branch when needed.
+            Move through the seven curated brands, review each portfolio across branches, then drill into a specific branch when needed.
           </p>
           <div className="hero-meta">
-            <span>Search by main_chef_id</span>
+            <span>Seven curated demo brands</span>
             <span>Portfolio and branch analytics</span>
             <span>AI explains and recommends, it does not invent KPIs</span>
           </div>
@@ -532,54 +529,40 @@ export function CopilotView({
       <section className="panel">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Chef search</p>
-            <h2>Search for a brand</h2>
+            <p className="eyebrow">Brand portfolio</p>
+            <h2>Demo brand selection</h2>
+            <p className="detail-explainer">Choose a brand to move the demo between the seven curated portfolio stories.</p>
           </div>
         </div>
-        <div className="search-panel">
-          <input
-            className="search-input"
-            type="text"
-            inputMode="numeric"
-            placeholder="Enter main_chef_id, for example 1001"
-            value={chefSearch}
-            onChange={(event) => onChefSearchChange(event.target.value)}
-          />
-          {selectedChefId !== null ? (
-            <button className="toggle-button" onClick={() => onSelectVendor(null)}>
-              Show all chef branches
-            </button>
-          ) : null}
-        </div>
-        {chefSearch && !showChefResults ? <p className="search-hint">No branches found for that main_chef_id.</p> : null}
-        {!chefSearch ? <p className="search-hint">Start with a main_chef_id to load the branch portfolio.</p> : null}
 
-        {!chefSearch ? (
-          <div className="portfolio-directory">
-            {chefPortfolios.map((portfolio) => {
-              const ordersTrend = portfolio.ordersPrev > 0 ? ((portfolio.ordersRecent - portfolio.ordersPrev) / portfolio.ordersPrev) * 100 : 0
-              const gmvTrend = portfolio.gmvPrev > 0 ? ((portfolio.gmvRecent - portfolio.gmvPrev) / portfolio.gmvPrev) * 100 : 0
-              return (
-                <button
-                  key={portfolio.mainChefId}
-                  className="portfolio-directory-row"
-                  onClick={() => onChefSearchChange(String(portfolio.mainChefId))}
-                >
-                  <div className="portfolio-directory-main">
-                    <strong>{getBrandName(portfolio.mainChefId)}</strong>
-                    <span>main_chef_id {portfolio.mainChefId} • {portfolio.branchCount} branches • {portfolio.cuisine} • {portfolio.primaryCity}</span>
-                  </div>
-                  <div className="portfolio-directory-metrics">
-                    <span className="branch-score">Orders {portfolio.ordersRecent}</span>
-                    <span className="branch-score">GMV {formatMoney(portfolio.gmvRecent)}</span>
-                    <span className="branch-score">Trend {ordersTrend.toFixed(1)}% / {gmvTrend.toFixed(1)}%</span>
-                    <span className="branch-score">Avg score {portfolio.avgFinalScore.toFixed(1)}</span>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        ) : null}
+        <div className="portfolio-directory">
+          {chefPortfolios.map((portfolio) => {
+            const ordersTrend = portfolio.ordersPrev > 0 ? ((portfolio.ordersRecent - portfolio.ordersPrev) / portfolio.ordersPrev) * 100 : 0
+            const gmvTrend = portfolio.gmvPrev > 0 ? ((portfolio.gmvRecent - portfolio.gmvPrev) / portfolio.gmvPrev) * 100 : 0
+            const isSelected = portfolio.mainChefId === selectedChefId
+            return (
+              <button
+                key={portfolio.mainChefId}
+                className={`portfolio-directory-row ${isSelected ? 'portfolio-directory-row-selected' : ''}`}
+                onClick={() => {
+                  onSelectChefId(portfolio.mainChefId)
+                  onSelectVendor(null)
+                }}
+              >
+                <div className="portfolio-directory-main">
+                  <strong>{getBrandName(portfolio.mainChefId)}</strong>
+                  <span>{portfolio.branchCount} branches • {portfolio.cuisine} • {portfolio.primaryCity}</span>
+                </div>
+                <div className="portfolio-directory-metrics">
+                  <span className="branch-score">Orders {portfolio.ordersRecent}</span>
+                  <span className="branch-score">GMV {formatMoney(portfolio.gmvRecent)}</span>
+                  <span className="branch-score">Trend {ordersTrend.toFixed(1)}% / {gmvTrend.toFixed(1)}%</span>
+                  <span className="branch-score">Avg score {portfolio.avgFinalScore.toFixed(1)}</span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
       </section>
 
       {showChefResults && chefTotals && chefCopilot ? (
@@ -617,12 +600,12 @@ export function CopilotView({
               <article className="portfolio-kpi-box">
                 <span className="portfolio-kpi-label">Orders</span>
                 <strong className="portfolio-kpi-value">{chefTotals.ordersRecent}</strong>
-                <span className="portfolio-kpi-detail">{chefTotals.ordersTrendPct.toFixed(1)}% vs previous comparison window</span>
+                <span className="portfolio-kpi-detail">{chefTotals.ordersTrendPct.toFixed(1)}% vs last month</span>
               </article>
               <article className="portfolio-kpi-box">
                 <span className="portfolio-kpi-label">GMV</span>
                 <strong className="portfolio-kpi-value">{formatMoney(chefTotals.gmvRecent)}</strong>
-                <span className="portfolio-kpi-detail">{chefTotals.gmvTrendPct.toFixed(1)}% vs previous comparison window</span>
+                <span className="portfolio-kpi-detail">{chefTotals.gmvTrendPct.toFixed(1)}% vs last month</span>
               </article>
               <article className="portfolio-kpi-box">
                 <span className="portfolio-kpi-label">AOV</span>
@@ -657,7 +640,7 @@ export function CopilotView({
             </div>
 
             <div className="explanation-note">
-              Trends in this view compare the latest period against the previous matching period. They are not running sums from the beginning of the dataset.
+              Trends in this view compare the latest month against last month. They are not running sums from the beginning of the dataset.
             </div>
 
             <div className="copilot-block">
